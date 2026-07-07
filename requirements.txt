@@ -1,0 +1,29 @@
+# ============================================================
+# Core dependencies — actively used by this project
+# ============================================================
+qiskit==2.4.2
+qiskit-aer==0.17.2
+numpy==2.2.6
+scipy==1.17.1
+matplotlib==3.11.0
+pylatexenc==2.10
+
+# Jupyter environment
+jupyterlab==4.6.0
+notebook==7.6.0
+ipykernel==7.3.0
+ipywidgets==8.1.8
+ipython==9.15.0
+
+# Data & utilities (used or will be used in Phase II/III)
+pandas==2.3.3
+sympy==1.14.0
+tabulate==0.10.0
+tqdm==4.68.3
+networkx==3.6.1
+
+# ============================================================
+# Planned dependencies — uncomment when work begins
+# ============================================================
+# mitiq             # Error mitigation library (Phase II)
+# cirq-core         # Required by mitiq for some backends (Phase II)
