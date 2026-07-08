@@ -1,50 +1,18 @@
-import numpy as np
+from qiskit.circuit.library import RZGate
+from qiskit_aer.noise import NoiseModel, coherent_unitary_error
 
-from qiskit import QuantumCircuit
-from qiskit.quantum_info import Operator
-from qiskit_aer import AerSimulator
-from qiskit_aer.noise import NoiseModel
-from qiskit_aer.noise import coherent_unitary_error
 
-qc = QuantumCircuit(2,2)
+def create_coherent_gate_error_model(rotation_angle: float) -> NoiseModel:
 
-qc.h(0)
-qc.cx(0,1)
+    noise_model = NoiseModel()
 
-qc.measure([0,1],[0,1])
+    coherent_error = coherent_unitary_error(
+        RZGate(rotation_angle)
+    )
 
-print(qc.draw())
+    noise_model.add_all_qubit_quantum_error(
+        coherent_error,
+        ["h"]
+    )
 
-theta = np.pi/60
-
-faulty_gate = Operator(
-[
-    [np.cos(theta),-np.sin(theta)],
-    [np.sin(theta), np.cos(theta)]
-]
-)
-
-noise = NoiseModel()
-
-coherent_error = coherent_unitary_error(
-    faulty_gate
-)
-
-noise.add_all_qubit_quantum_error(
-    coherent_error,
-    ['h']
-)
-
-simulator = AerSimulator(
-    noise_model=noise
-)
-
-result = simulator.run(
-    qc,
-    shots=4096
-).result()
-
-counts = result.get_counts()
-
-print("\nCoherent Gate Error\n")
-print(counts)
+    return noise_model

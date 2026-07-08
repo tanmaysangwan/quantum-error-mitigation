@@ -10,7 +10,7 @@ from src.plotting.histogram_plotter import save_histogram
 def main():
     circuit = create_bell_state()
 
-    save_circuit(circuit, "bell_state_depolarizing")
+    save_circuit(circuit, "bell_state_depolarizing", category="noisy")
 
     noise_model = create_depolarizing_noise_model(0.05)
 
@@ -23,7 +23,7 @@ def main():
     print("\nMeasurement Counts:")
     print(counts)
 
-    save_histogram(counts, "bell_state_depolarizing")
+    save_histogram(counts, "bell_state_depolarizing", category="noisy")
 
     plt.show()
 

@@ -1,27 +1,32 @@
-from qiskit import QuantumCircuit
-from qiskit_aer import AerSimulator
-from qiskit_aer.noise import NoiseModel, amplitude_damping_error
+import matplotlib.pyplot as plt
 
-qc = QuantumCircuit(1,1)
+from src.backends.simulator import run_circuit
+from src.circuits.bell_state import create_bell_state
+from src.noise_models.amplitude_damping import create_amplitude_damping_noise_model
+from src.plotting.circuit_plotter import save_circuit
+from src.plotting.histogram_plotter import save_histogram
 
-qc.x(0)
 
-qc.measure(0,0)
+def main():
+    circuit = create_bell_state()
 
-noise_model = NoiseModel()
+    save_circuit(circuit, "bell_state_amplitude_damping", category="noisy")
 
-error = amplitude_damping_error(0.8) #80% error
+    noise_model = create_amplitude_damping_noise_model(0.05)
 
-noise_model.add_all_qubit_quantum_error(
-    error,
-    ['x']
-)
+    counts = run_circuit(
+        circuit=circuit,
+        noise_model=noise_model,
+    )
 
-sim = AerSimulator(noise_model=noise_model)
+    print(circuit.draw())
+    print("\nMeasurement Counts:")
+    print(counts)
 
-result = sim.run(
-    qc,
-    shots=1000
-).result()
+    save_histogram(counts, "bell_state_amplitude_damping", category="noisy")
 
-print(result.get_counts())
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()

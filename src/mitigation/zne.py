@@ -1,68 +1,85 @@
-import numpy as np
+import matplotlib.pyplot as plt
 
-from qiskit import QuantumCircuit
-from qiskit_aer import AerSimulator
-from qiskit_aer.noise import NoiseModel, depolarizing_error
-
-noise_levels = [0.05, 0.10, 0.20]
-
-probabilities = []
-
-for noise in noise_levels:
-
-    qc = QuantumCircuit(2,2)
-
-    qc.h(0)
-    qc.cx(0,1)
-
-    qc.measure([0,1],[0,1])
-
-    noise_model = NoiseModel()
-
-    error1 = depolarizing_error(noise,1)
-    error2 = depolarizing_error(noise,2)
-
-    noise_model.add_all_qubit_quantum_error(error1,['h'])
-    noise_model.add_all_qubit_quantum_error(error2,['cx'])
-
-    sim = AerSimulator(noise_model=noise_model)
-
-    result = sim.run(qc,shots=1000).result()
-
-    counts = result.get_counts()
-
-    correct = counts.get('00',0) + counts.get('11',0)
-
-    probability = correct/1000
-
-    probabilities.append(probability)
-
-print("Noise Levels")
-print(noise_levels)
-
-print()
-
-print("Correct Probabilities")
-print(probabilities)
-
-coefficients = np.polyfit(
-    noise_levels,
-    probabilities,
-    1
+from src.backends.simulator import run_circuit
+from src.circuits.bell_state import create_bell_state
+from src.mitigation.zero_noise_extrapolation import (
+    calculate_expectation_value,
+    linear_extrapolation,
 )
+from src.noise_models.depolarizing_noise import create_depolarizing_noise_model
+from src.plotting.circuit_plotter import save_circuit
+from src.plotting.histogram_plotter import save_histogram
+from src.plotting.zne_plotter import save_zne_plot
 
-m = coefficients[0]
 
-c = coefficients[1]
+def main():
+    circuit = create_bell_state()  # Create the Bell-state circuit.
 
-print()
+    save_circuit(
+        circuit,
+        "bell_state_zne",
+        category="ideal",
+    )  # Save the circuit.
 
-print("Best Fit Line")
+    ideal_counts = run_circuit(circuit)  # Run the ideal circuit.
 
-print(f"y = {m:.4f}x + {c:.4f}")
+    save_histogram(
+        ideal_counts,
+        "bell_state_zne",
+        category="ideal",
+    )  # Save the ideal histogram.
 
-print()
+    noise_factors = [1, 2, 3]  # Noise scaling factors.
+    error_probability = 0.02  # Base depolarizing probability.
 
-print("Predicted Zero Noise Probability")
+    expectation_values = []  # Store expectation values.
 
-print(c)
+    for factor in noise_factors:
+
+        noise_model = create_depolarizing_noise_model(
+            error_probability * factor,
+        )  # Scale the noise.
+
+        counts = run_circuit(
+            circuit,
+            noise_model=noise_model,
+        )  # Run the noisy circuit.
+
+        save_histogram(
+            counts,
+            f"bell_state_zne_{factor}x",
+            category="noisy",
+        )  # Save the histogram.
+
+        expectation = calculate_expectation_value(counts)  # Calculate <ZZ>.
+
+        expectation_values.append(expectation)  # Store expectation.
+
+        print(f"{factor}x Noise Counts:")
+        print(counts)
+        print(f"Expectation Value: {expectation:.4f}\n")
+
+    mitigated_expectation = linear_extrapolation(
+        noise_factors,
+        expectation_values,
+    )  # Estimate the zero-noise value.
+
+    print("=" * 40)
+    print("Zero Noise Extrapolation")
+    print("=" * 40)
+    print(f"Noise Factors      : {noise_factors}")
+    print(f"Expectation Values : {expectation_values}")
+    print(f"Zero Noise Estimate: {mitigated_expectation:.4f}")
+
+    save_zne_plot(
+        noise_factors,
+        expectation_values,
+        mitigated_expectation,
+        "bell_state",
+    )  # Save the extrapolation graph.
+
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()

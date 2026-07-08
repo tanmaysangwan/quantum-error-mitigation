@@ -3,8 +3,8 @@ from pathlib import Path
 from qiskit import QuantumCircuit
 
 
-def save_circuit(circuit: QuantumCircuit, filename: str) -> None:
-    output_dir = Path("results/figures")
+def save_circuit(circuit: QuantumCircuit, filename: str, category: str = "ideal") -> None:
+    output_dir = Path("results/figures") / category
     output_dir.mkdir(parents=True, exist_ok=True)
 
     figure = circuit.draw(output="mpl")

@@ -1,35 +1,24 @@
-from qiskit import QuantumCircuit
-from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel, phase_damping_error
 
-qc = QuantumCircuit(2,2)
 
-qc.h(0)
-qc.cx(0,1)
+def create_phase_damping_noise_model(error_probability: float) -> NoiseModel:
+    """
+    Create a phase damping noise model.
 
-qc.measure([0,1],[0,1])
+    Args:
+        error_probability: Probability of phase damping.
 
-print(qc.draw())
+    Returns:
+        A configured Qiskit NoiseModel.
+    """
 
-noise_model = NoiseModel()
+    noise_model = NoiseModel()
 
-phase_error = phase_damping_error(0.20)
+    single_qubit_error = phase_damping_error(error_probability)
 
-noise_model.add_all_qubit_quantum_error(
-    phase_error,
-    ['h','x']
-)
+    noise_model.add_all_qubit_quantum_error(
+        single_qubit_error,
+        ["h"]
+    )
 
-simulator = AerSimulator(
-    noise_model=noise_model
-)
-
-result = simulator.run(
-    qc,
-    shots=4096
-).result()
-
-counts = result.get_counts()
-
-print("\nPhase Damping Result\n")
-print(counts)
+    return noise_model
