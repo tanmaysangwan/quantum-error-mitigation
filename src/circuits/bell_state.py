@@ -1,10 +1,23 @@
+"""
+bell_state.py
+
+Reusable Bell State circuit builder.
+
+This module provides a function to create a Bell State quantum circuit
+that can be reused across experiments, benchmarks, and error mitigation
+techniques.
+"""
+
 from qiskit import QuantumCircuit
 
-qc = QuantumCircuit(2,2)
 
-qc.h(0)
-qc.cx(0,1)
+def create_bell_state() -> QuantumCircuit:
+    circuit = QuantumCircuit(2, 2)
 
-qc.measure([0,1],[0,1])
+    circuit.h(0)
 
-print(qc.draw())
+    circuit.cx(0, 1)
+
+    circuit.measure([0, 1], [0, 1])
+
+    return circuit

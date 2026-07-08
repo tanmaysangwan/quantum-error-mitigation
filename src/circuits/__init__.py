@@ -1,3 +1,5 @@
-# Reusable quantum circuit definitions.
-# Each module exposes a function that returns a QuantumCircuit instance.
-# Benchmark circuits (Bell, GHZ, QFT, VQE, QAOA) will be added here.
+"""Reusable quantum circuit builders."""
+
+from .bell_state import create_bell_state
+
+__all__ = ["create_bell_state"]
