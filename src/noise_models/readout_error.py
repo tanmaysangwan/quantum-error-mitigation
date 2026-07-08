@@ -1,39 +1,26 @@
-from qiskit import QuantumCircuit
-from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel, ReadoutError
 
-qc = QuantumCircuit(2,2)
 
-qc.h(0)
-qc.cx(0,1)
+def create_readout_error_model(error_probability: float) -> NoiseModel:
+    """
+    Create a readout error model.
 
-qc.measure([0,1],[0,1])
+    Args:
+        error_probability: Probability of measuring the wrong value.
 
-print(qc.draw())
+    Returns:
+        A configured Qiskit NoiseModel.
+    """
 
-noise_model = NoiseModel()
+    noise_model = NoiseModel()
 
-readout_error = ReadoutError(
-[
-    [0.95,0.05],
-    [0.10,0.90]
-]
-)
+    readout_error = ReadoutError(
+        [
+            [1 - error_probability, error_probability],
+            [error_probability, 1 - error_probability],
+        ]
+    )
 
-noise_model.add_all_qubit_readout_error(
-    readout_error
-)
+    noise_model.add_all_qubit_readout_error(readout_error)
 
-simulator = AerSimulator(
-    noise_model=noise_model
-)
-
-result = simulator.run(
-    qc,
-    shots=4096
-).result()
-
-counts = result.get_counts()
-
-print("\nReadout Error Result\n")
-print(counts)
+    return noise_model

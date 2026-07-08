@@ -1,31 +1,23 @@
-from qiskit import QuantumCircuit
-from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel, depolarizing_error
 
-qc = QuantumCircuit(2, 2)
 
-qc.h(0)
-qc.cx(0, 1)
+def create_depolarizing_noise_model(error_probability: float) -> NoiseModel:
+    """
+    Create a depolarizing noise model.
 
-qc.measure([0, 1], [0, 1])
+    Args:
+        error_probability: Probability of depolarizing error.
 
-print("Quantum Circuit:\n")
-print(qc.draw())
+    Returns:
+        A configured Qiskit NoiseModel.
+    """
 
-noise_model = NoiseModel()
+    noise_model = NoiseModel()
 
-error_1 = depolarizing_error(0.02, 1)
-error_2 = depolarizing_error(0.05, 2)
+    single_qubit_error = depolarizing_error(error_probability, 1)
+    two_qubit_error = depolarizing_error(error_probability, 2)
 
-noise_model.add_all_qubit_quantum_error(error_1, ['h'])
-noise_model.add_all_qubit_quantum_error(error_2, ['cx'])
+    noise_model.add_all_qubit_quantum_error(single_qubit_error, ["h"])
+    noise_model.add_all_qubit_quantum_error(two_qubit_error, ["cx"])
 
-simulator = AerSimulator(noise_model=noise_model)
-
-job = simulator.run(qc, shots=4096)
-result = job.result()
-
-counts = result.get_counts()
-
-print("\nMeasurement Counts")
-print(counts)
+    return noise_model
