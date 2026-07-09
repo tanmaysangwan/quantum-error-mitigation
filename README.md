@@ -4,13 +4,6 @@ A Python framework for implementing, studying, and comparing Quantum Error Mitig
 
 Built with [Qiskit](https://www.ibm.com/quantum/qiskit) and [Qiskit Aer](https://github.com/Qiskit/qiskit-aer) as part of an internship research project on near-term quantum error mitigation.
 
----
-
-## Project Status
-
-**Phase I — Complete.** All six noise models implemented and validated against Bell and GHZ benchmark circuits.
-
-**Phase II — In Progress.** Measurement Error Mitigation (MEM) and Zero Noise Extrapolation (ZNE) are fully implemented and producing results. Probabilistic Error Cancellation (PEC) is implemented with a custom correction scheme; Mitiq integration is prepared but not yet wired in.
 
 ---
 
