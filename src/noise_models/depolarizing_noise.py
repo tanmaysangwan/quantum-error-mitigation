@@ -2,15 +2,6 @@ from qiskit_aer.noise import NoiseModel, depolarizing_error
 
 
 def create_depolarizing_noise_model(error_probability: float) -> NoiseModel:
-    """
-    Create a depolarizing noise model.
-
-    Args:
-        error_probability: Probability of depolarizing error.
-
-    Returns:
-        A configured Qiskit NoiseModel.
-    """
 
     noise_model = NoiseModel()
 

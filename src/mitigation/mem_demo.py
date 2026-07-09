@@ -1,11 +1,12 @@
-import matplotlib.pyplot as plt  # Show the final figures.
+#It creates the Bell State, introduces readout noise, performs calibration, applies mitigation, and compares the results.
+import matplotlib.pyplot as plt 
 
-from src.backends.simulator import run_circuit  # Shared circuit runner.
-from src.circuits.bell_state import create_bell_state  # Bell benchmark circuit.
-from src.mitigation.measurement_error_mitigation import build_calibration_matrix, mitigate_counts  # MEM math.
-from src.noise_models.readout_error import create_readout_error_model  # Readout-noise model.
-from src.plotting.circuit_plotter import save_circuit  # Save the circuit image.
-from src.plotting.histogram_plotter import save_histogram  # Save histogram images.
+from src.backends.simulator import run_circuit  
+from src.circuits.bell_state import create_bell_state  
+from src.mitigation.measurement_error_mitigation import build_calibration_matrix, mitigate_counts  
+from src.noise_models.readout_error import create_readout_error_model  
+from src.plotting.circuit_plotter import save_circuit  
+from src.plotting.histogram_plotter import save_histogram  
 
 
 def main():
@@ -32,7 +33,7 @@ def main():
     print("\nMitigated Counts:")  # Label the mitigated counts.
     print(mitigated_counts)  # Print the MEM-corrected counts.
 
-    plt.show()  # Keep the figures visible if launched from an IDE.
+    plt.show() 
 
 
 if __name__ == "__main__":

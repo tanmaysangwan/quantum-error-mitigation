@@ -7,11 +7,11 @@ def create_calibration_circuit(bitstring: str) -> QuantumCircuit:
     if len(bitstring) != 2 or any(bit not in "01" for bit in bitstring):  # Keep the calibration input valid.
         raise ValueError("Calibration bitstring must be one of: 00, 01, 10, 11.")
 
-    circuit = QuantumCircuit(2, 2)  # Two qubits and two classical bits.
+    circuit = QuantumCircuit(2, 2) 
 
     for qubit, bit in enumerate(reversed(bitstring)):  # Match Qiskit's bit ordering.
         if bit == "1":
-            circuit.x(qubit)  # Prepare the requested basis state.
+            circuit.x(qubit)  # Applies X gate whenever qubit needs t be |1>
 
     circuit.measure([0, 1], [0, 1])  # Measure both qubits.
     return circuit
