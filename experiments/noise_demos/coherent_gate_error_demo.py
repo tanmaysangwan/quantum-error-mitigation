@@ -12,7 +12,7 @@ def main():
 
     save_circuit(circuit, "bell_state_coherent", category="noisy")
 
-    noise_model = create_coherent_gate_error_model(0.05)
+    noise_model = create_coherent_gate_error_model(0.20)
 
     counts = run_circuit(
         circuit=circuit,

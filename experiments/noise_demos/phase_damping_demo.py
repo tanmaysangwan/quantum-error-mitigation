@@ -12,7 +12,7 @@ def main():
 
     save_circuit(circuit, "bell_state_phase_damping", category="noisy")
 
-    noise_model = create_phase_damping_noise_model(0.05)
+    noise_model = create_phase_damping_noise_model(0.20)
 
     counts = run_circuit(
         circuit=circuit,

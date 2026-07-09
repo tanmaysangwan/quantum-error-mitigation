@@ -1,6 +1,6 @@
 # Quantum Error Mitigation Framework
 
-A Python framework for implementing, analyzing, and comparing Quantum Error Mitigation (QEM) techniques for NISQ-era quantum computers.
+A Python framework for implementing, studying, and comparing Quantum Error Mitigation (QEM) techniques for NISQ-era quantum computers.
 
 Built with [Qiskit](https://www.ibm.com/quantum/qiskit) and [Qiskit Aer](https://github.com/Qiskit/qiskit-aer) as part of an internship research project on near-term quantum error mitigation.
 
@@ -8,17 +8,17 @@ Built with [Qiskit](https://www.ibm.com/quantum/qiskit) and [Qiskit Aer](https:/
 
 ## Project Status
 
-**Phase I complete** — noise models implemented and validated.  
-**Phase II in progress** — error mitigation prototypes (MEM, ZNE, PEC) under active development.  
-Benchmarking, metrics, and visualization modules are planned for upcoming phases.
+**Phase I — Complete.** All six noise models implemented and validated against Bell and GHZ benchmark circuits.
+
+**Phase II — In Progress.** Measurement Error Mitigation (MEM) and Zero Noise Extrapolation (ZNE) are fully implemented and producing results. Probabilistic Error Cancellation (PEC) is implemented with a custom correction scheme; Mitiq integration is prepared but not yet wired in.
 
 ---
 
 ## Objectives
 
-1. Study and model common noise sources in NISQ devices.
-2. Implement major Quantum Error Mitigation techniques.
-3. Benchmark mitigation methods against standard quantum algorithms.
+1. Study and model common noise sources on NISQ devices.
+2. Implement major Quantum Error Mitigation techniques from scratch.
+3. Benchmark mitigation methods against standard quantum circuits.
 4. Analyze trade-offs between accuracy improvement and computational overhead.
 
 ---
@@ -29,34 +29,39 @@ Benchmarking, metrics, and visualization modules are planned for upcoming phases
 quantum-error-mitigation/
 │
 ├── src/
-│   ├── circuits/        # Reusable quantum circuit definitions (Bell, GHZ, QFT, VQE, QAOA)
-│   ├── noise_models/    # Noise model implementations (depolarizing, amplitude damping, etc.)
-│   ├── mitigation/      # Error mitigation modules (MEM, ZNE, PEC, and future techniques)
-│   ├── benchmarks/      # Automated benchmarking utilities (planned)
-│   ├── metrics/         # Performance metrics: fidelity, expectation values, overhead (planned)
-│   ├── backends/        # Backend wrappers: Aer simulator, IBM Quantum Runtime (planned)
-│   ├── plotting/        # Plot generation for results and comparisons (planned)
-│   └── common/          # Shared utilities: I/O, logging, validation (planned)
+│   ├── circuits/          # Reusable circuit builders: Bell state, GHZ state
+│   ├── noise_models/      # Six noise model implementations
+│   ├── mitigation/        # MEM, ZNE, PEC implementations + demo entry points
+│   ├── backends/          # AerSimulator wrapper (run_circuit)
+│   ├── plotting/          # Circuit, histogram, and ZNE plot utilities
+│   ├── benchmarks/        # Planned
+│   ├── metrics/           # Planned
+│   └── common/            # Planned
 │
 ├── experiments/
-│   ├── basics/          # Introductory Qiskit circuit experiments
-│   ├── noise_demos/     # Standalone noise demonstration scripts
-│   ├── ghz/             # GHZ state experiments (planned)
-│   ├── qft/             # Quantum Fourier Transform experiments (planned)
-│   ├── vqe/             # VQE experiments (planned)
-│   └── qaoa/            # QAOA experiments (planned)
+│   ├── basics/            # Introductory Qiskit scripts (gates, measurement, drawing)
+│   └── noise_demos/       # Standalone noise demonstration scripts
 │
-├── notebooks/           # Jupyter notebooks for interactive exploration
-├── tests/               # Unit and integration tests (planned)
+├── notebooks/
+│   └── grovers_8q.ipynb   # Grover's algorithm (8 qubits)
+│
+├── tests/                 # Planned
 ├── data/
-│   ├── raw/             # Raw experimental output
-│   └── processed/       # Cleaned and aggregated data
+│   ├── raw/
+│   └── processed/
 ├── results/
-│   ├── figures/         # Generated plots
-│   └── reports/         # Final output reports
-├── configs/             # Configuration files (planned)
-├── docs/                # Notes, literature, and project reports
+│   ├── figures/
+│   │   ├── ideal/         # Circuit diagrams and ideal histograms
+│   │   ├── noisy/         # Noisy simulation histograms
+│   │   └── mitigated/     # Post-mitigation histograms and ZNE plots
+│   ├── data/
+│   └── reports/
+├── docs/
+│   ├── literature/
+│   ├── notes/
+│   └── report/
 │
+├── run.py
 ├── requirements.txt
 ├── LICENSE
 ├── CONTRIBUTING.md
@@ -69,8 +74,8 @@ quantum-error-mitigation/
 
 ### Prerequisites
 
-- macOS / Linux
-- Python 3.11 or 3.13 (Homebrew recommended on macOS)
+- macOS or Linux
+- Python 3.12 (recommended: install via [Homebrew](https://brew.sh/) on macOS)
 
 ### Setup
 
@@ -79,104 +84,134 @@ quantum-error-mitigation/
 git clone <repository-url>
 cd quantum-error-mitigation
 
-# Create a virtual environment
-python3 -m venv qiskit-env
+# Create a virtual environment using Python 3.12
+python3.12 -m venv qiskit-env
 
 # Activate it
 source qiskit-env/bin/activate
 
-# Install dependencies
+# Upgrade packaging tools
+pip install --upgrade pip setuptools wheel
+
+# Install all dependencies
 pip install -r requirements.txt
-```
-
----
-
-## Activating the Virtual Environment
-
-Always activate before running any code:
-
-```bash
-source qiskit-env/bin/activate
-```
-
-To open in VS Code with the correct interpreter:
-
-```bash
-source qiskit-env/bin/activate
-code .
 ```
 
 ---
 
 ## Running Experiments
 
-All experiment scripts are self-contained and runnable directly.
+All experiments are launched through `run.py`. Activate the environment first:
 
 ```bash
-# Activate environment first
 source qiskit-env/bin/activate
-
-# Noise model demonstrations
-python experiments/noise_demos/hadamard_demo.py
-python experiments/noise_demos/noise_injection.py
-python experiments/noise_demos/amplitude_damping_demo.py
-
-# Error mitigation prototypes
-python src/mitigation/mem_demo.py
-python src/mitigation/zne.py
-python src/mitigation/pec.py
-
-# Noise model implementations
-python src/noise_models/depolarizing_noise.py
-python src/noise_models/amplitude_damping.py
-python src/noise_models/phase_damping.py
-python src/noise_models/readout_error.py
-python src/noise_models/coherent_gate_error.py
-python src/noise_models/combined_noise.py
-
-# Basics
-python experiments/basics/single_qubit_gates.py
-python experiments/basics/multiqubit_gates.py
 ```
+
+### Benchmark Circuits
+
+```bash
+python run.py bell          # Bell state — ideal simulation
+python run.py ghz           # GHZ state (3 qubits) — ideal simulation
+```
+
+### Noise Model Demonstrations
+
+```bash
+python run.py depolarizing  # Depolarizing noise on Bell state
+python run.py readout       # Readout (measurement) error on Bell state
+python run.py phase         # Phase damping on Bell state
+python run.py amplitude     # Amplitude damping on Bell state
+python run.py coherent      # Coherent gate error on Bell state
+python run.py combined      # All noise types combined on Bell state
+```
+
+### Error Mitigation Experiments
+
+```bash
+python run.py mem           # Measurement Error Mitigation (matrix inversion)
+python run.py zne           # Zero Noise Extrapolation (linear fit)
+python run.py pec           # Probabilistic Error Cancellation (custom scheme)
+```
+
+Each experiment prints results to the terminal and saves circuit diagrams and measurement histograms to `results/figures/`.
 
 ---
 
-## Current Progress
+## Implemented Features
 
-| Module | Status |
+### Circuits (`src/circuits/`)
+
+| Circuit | Description |
 |---|---|
-| Noise Models (depolarizing, amplitude damping, phase damping, readout, coherent, combined) | Done |
-| Measurement Error Mitigation (MEM) | Prototype |
-| Zero Noise Extrapolation (ZNE) | Prototype |
-| Probabilistic Error Cancellation (PEC) | Prototype |
-| Clifford Data Regression (CDR) | Planned |
-| Virtual Distillation | Planned |
-| Dynamical Decoupling | Planned |
-| Benchmarking Suite | Planned |
-| Performance Metrics | Planned |
-| Visualization Dashboard | Planned |
+| Bell state | 2-qubit maximally entangled state (H + CNOT) |
+| GHZ state | N-qubit generalisation of the Bell state |
+
+### Noise Models (`src/noise_models/`)
+
+| Model | Gate targets |
+|---|---|
+| Depolarizing | H, CX |
+| Amplitude damping | H, CX |
+| Phase damping | H, CX |
+| Readout error | All qubits (measurement) |
+| Coherent gate error | H, CX (via RX rotation) |
+| Combined | Depolarizing + amplitude + phase + readout |
+
+### Simulator Backend (`src/backends/`)
+
+- `run_circuit` — thin wrapper around `AerSimulator` supporting optional noise models and configurable shot count.
+
+### Plotting Utilities (`src/plotting/`)
+
+| Utility | Output |
+|---|---|
+| `circuit_plotter` | Circuit diagram PNG saved to `results/figures/` |
+| `histogram_plotter` | Measurement histogram PNG (ideal / noisy / mitigated) |
+| `zne_plotter` | Noise-scaling plot with linear extrapolation to zero noise |
+
+### Error Mitigation (`src/mitigation/`)
+
+| Technique | Status | Approach |
+|---|---|---|
+| Measurement Error Mitigation (MEM) | **Complete** | 4×4 calibration matrix, matrix inversion |
+| Zero Noise Extrapolation (ZNE) | **Complete** | Linear extrapolation across noise scaling factors 1×, 2×, 3× |
+| Probabilistic Error Cancellation (PEC) | **In progress** | Custom correction-factor scheme; Mitiq integration planned |
 
 ---
 
 ## Technologies
 
-| Tool | Purpose |
-|---|---|
-| [Qiskit](https://www.ibm.com/quantum/qiskit) | Quantum circuit construction and execution |
-| [Qiskit Aer](https://github.com/Qiskit/qiskit-aer) | Noisy quantum simulation |
-| [Mitiq](https://mitiq.readthedocs.io/) | Error mitigation library (planned integration) |
-| [NumPy](https://numpy.org/) | Numerical computation |
-| [SciPy](https://scipy.org/) | Scientific computing |
-| [Matplotlib](https://matplotlib.org/) | Plotting and visualization |
-| [JupyterLab](https://jupyter.org/) | Interactive notebooks |
+| Tool | Version | Purpose |
+|---|---|---|
+| Python | 3.12 | Runtime |
+| [Qiskit](https://www.ibm.com/quantum/qiskit) | 2.4.2 | Circuit construction and execution |
+| [Qiskit Aer](https://github.com/Qiskit/qiskit-aer) | 0.17.2 | Noisy quantum simulation |
+| [Mitiq](https://mitiq.readthedocs.io/) | 1.0.0 | Error mitigation library (prepared for Phase II integration) |
+| [Cirq](https://quantumai.google/cirq) | 1.6.1 | Mitiq backend dependency |
+| [NumPy](https://numpy.org/) | 2.2.6 | Numerical computation |
+| [SciPy](https://scipy.org/) | 1.17.1 | Scientific computing |
+| [Matplotlib](https://matplotlib.org/) | 3.11.0 | Plotting and visualization |
+| [JupyterLab](https://jupyter.org/) | 4.6.0 | Interactive notebooks |
+
+---
+
+## Future Work
+
+- Full Mitiq integration for ZNE and PEC
+- Clifford Data Regression (CDR)
+- Virtual Distillation
+- Dynamical Decoupling
+- Automated benchmarking suite
+- Performance metrics module (fidelity, sampling overhead)
+- Unit and integration test suite
 
 ---
 
 ## References
 
-- Temme, K., Bravyi, S., & Gambetta, J. M. (2017). *Error Mitigation for Short-Depth Quantum Circuits.*
-- Endo, S., Benjamin, S., & Li, Y. (2018). *Practical Quantum Error Mitigation for Near-Future Applications.*
-- Kandala, A. et al. (2019). *Error Mitigation Extends the Computational Reach of a Noisy Quantum Processor.*
+- Temme, K., Bravyi, S., & Gambetta, J. M. (2017). *Error Mitigation for Short-Depth Quantum Circuits.* Physical Review Letters.
+- Endo, S., Benjamin, S., & Li, Y. (2018). *Practical Quantum Error Mitigation for Near-Future Applications.* Physical Review X.
+- Kandala, A. et al. (2019). *Error Mitigation Extends the Computational Reach of a Noisy Quantum Processor.* Nature.
 - [IBM Quantum — Error Mitigation and Suppression Techniques](https://quantum.cloud.ibm.com/docs/en/guides/error-mitigation-and-suppression-techniques)
 - [Mitiq Documentation](https://mitiq.readthedocs.io/)
 
