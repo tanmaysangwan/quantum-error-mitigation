@@ -9,44 +9,61 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### In Progress
-- Probabilistic Error Cancellation (PEC) — Mitiq integration
-- Full Mitiq wiring for ZNE and PEC backends
+- Probabilistic Error Cancellation (PEC) — replacing custom correction heuristic with proper
+  quasi-probability implementation via Mitiq
+- ZNE upgrade — circuit folding for gate-level noise amplification; Richardson/polynomial extrapolation
 
-### Planned
-- Clifford Data Regression (CDR)
-- Virtual Distillation
+### Planned (Phase II completion)
+- Clifford Data Regression (CDR) via Mitiq
+- Metrics module: fidelity, expectation value accuracy, error reduction %, sampling overhead
+- Fix: remove duplicate `plt.show()` in `zne_plotter.py`
+- Unit tests for all mitigation functions
+
+### Planned (Phase III & IV)
+- QFT, VQE, QAOA benchmark circuits
+- Automated benchmarking suite across noise levels and circuit depths
+- Performance comparison table (ZNE vs PEC vs MEM vs CDR)
 - Dynamical Decoupling
-- Automated benchmarking suite
-- Performance metrics module (fidelity, expectation values, sampling overhead)
-- Unit and integration test suite
+- Virtual Distillation
 - Visualization dashboard
 
 ---
 
-## [0.4.0] — 2025
+## [0.4.0] — 2025-07
 
 ### Added
-- Python environment migrated from 3.13 to 3.12 for broader package compatibility
-- Mitiq 1.0.0 and Cirq 1.6.1 installed and verified in the virtual environment
-- `qiskit-env` virtualenv rebuilt from scratch under Python 3.12.13
-- All previously pinned dependencies reinstalled and confirmed working under Python 3.12
+- Code audit completed — full review of all Phase I and Phase II implementation against
+  project specification; issues identified and documented in Phase II completion checklist
+- README updated — project status table, Phase II checklist, technologies table updated
+- CHANGELOG updated to reflect current state and remaining work
 
 ### Notes
-- NumPy pinned to 2.2.6 and SciPy to 1.17.1 to satisfy Mitiq 1.0.0 constraints
-- All four core experiments (`bell`, `ghz`, `mem`, `zne`) verified end-to-end after migration
+- PEC custom correction scheme confirmed as a heuristic approximation, not true
+  quasi-probability PEC; replacement with Mitiq PEC is the next priority
+- ZNE circuit uses error-probability scaling rather than circuit folding; upgrade planned
+
+---
+
+## [0.3.1] — 2025
+
+### Notes
+- Python environment confirmed stable under 3.12.13
+- All five experiments (`bell`, `ghz`, `mem`, `zne`, `pec`) verified end-to-end
+- Result figures saved to `results/figures/ideal/`, `noisy/`, and `mitigated/`
 
 ---
 
 ## [0.3.0] — 2025
 
 ### Added
-- **Probabilistic Error Cancellation (PEC)** — custom correction-factor implementation in `src/mitigation/probabilistic_error_cancellation.py`
+- **Probabilistic Error Cancellation (PEC)** — custom correction-factor implementation
+  in `src/mitigation/probabilistic_error_cancellation.py`
 - PEC demo entry point `src/mitigation/pec.py` wired into `run.py` as `python run.py pec`
 - `run.py` unified experiment launcher — all experiments runnable via a single CLI entry point
 - `EXPERIMENTS` registry mapping short names to experiment `main()` functions
 
 ### Changed
-- All experiment `noise_demos/` scripts refactored to expose a `main()` function for use by `run.py`
+- All `experiments/noise_demos/` scripts refactored to expose a `main()` function
 - `src/mitigation/mem_demo.py` and `src/mitigation/zne.py` likewise refactored to expose `main()`
 
 ---
@@ -54,14 +71,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [0.2.0] — 2025
 
 ### Added
-- **Measurement Error Mitigation (MEM)** — full implementation using 4×4 calibration matrix and matrix inversion
+- **Measurement Error Mitigation (MEM)** — full implementation using 4×4 calibration matrix
+  and matrix inversion
   - `src/mitigation/calibration.py` — calibration circuit builder for all 4 two-qubit basis states
-  - `src/mitigation/measurement_error_mitigation.py` — `build_calibration_matrix` and `mitigate_counts`
+  - `src/mitigation/measurement_error_mitigation.py` — `build_calibration_matrix` and
+    `mitigate_counts`
   - `src/mitigation/mem_demo.py` — end-to-end MEM demo on Bell state with readout noise
 - **Zero Noise Extrapolation (ZNE)** — linear extrapolation across noise scaling factors 1×, 2×, 3×
-  - `src/mitigation/zero_noise_extrapolation.py` — `linear_extrapolation` and `calculate_expectation_value`
+  - `src/mitigation/zero_noise_extrapolation.py` — `linear_extrapolation` and
+    `calculate_expectation_value`
   - `src/mitigation/zne.py` — end-to-end ZNE demo on Bell state with depolarizing noise
-- **ZNE plotter** — `src/plotting/zne_plotter.py` saves extrapolation graph to `results/figures/mitigated/`
+- **ZNE plotter** — `src/plotting/zne_plotter.py` saves extrapolation graph to
+  `results/figures/mitigated/`
 - Results saved to structured `results/figures/` subdirectories: `ideal/`, `noisy/`, `mitigated/`
 
 ---
@@ -80,7 +101,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - `readout_error.py` — symmetric readout error on all qubits
   - `coherent_gate_error.py` — coherent unitary error via RX rotation
   - `combined_noise.py` — depolarizing + amplitude damping + phase damping + readout combined
-- **Simulator backend** — `src/backends/simulator.py` wrapping `AerSimulator` with optional noise model
+- **Simulator backend** — `src/backends/simulator.py` wrapping `AerSimulator` with optional
+  noise model
 - **Plotting utilities**
   - `src/plotting/circuit_plotter.py` — saves circuit diagrams as PNG
   - `src/plotting/histogram_plotter.py` — saves measurement histograms as PNG

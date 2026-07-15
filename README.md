@@ -2,22 +2,27 @@
 
 A Python framework for implementing, studying, and comparing Quantum Error Mitigation (QEM) techniques for NISQ-era quantum computers.
 
-Built with [Qiskit](https://www.ibm.com/quantum/qiskit) and [Qiskit Aer](https://github.com/Qiskit/qiskit-aer) as part of an internship research project on near-term quantum error mitigation.
+Built with [Qiskit](https://www.ibm.com/quantum/qiskit), [Qiskit Aer](https://github.com/Qiskit/qiskit-aer), and [Mitiq](https://mitiq.readthedocs.io/) as part of an internship research project on near-term quantum error mitigation.
 
 ---
 
 ## Project Status
 
-**Phase I — Complete.** All six noise models implemented and validated against Bell and GHZ benchmark circuits.
+| Phase | Status | Notes |
+|---|---|---|
+| Phase I — Noise Modelling | ✅ Complete | All 6 noise models implemented and validated |
+| Phase II — Error Mitigation | 🔄 In Progress | MEM complete · ZNE complete · PEC in progress · CDR planned |
+| Phase III — Benchmarking | ⏳ Planned | QFT, VQE, QAOA circuits pending |
+| Phase IV — Performance Analysis | ⏳ Planned | Metrics module pending |
 
-**Phase II — In Progress.** Measurement Error Mitigation (MEM) and Zero Noise Extrapolation (ZNE) are fully implemented and producing results. Probabilistic Error Cancellation (PEC) is implemented with a custom correction scheme; Mitiq integration is prepared but not yet wired in.
+**Current focus:** Completing Phase II — replacing the custom PEC heuristic with proper quasi-probability PEC via Mitiq, upgrading ZNE to use circuit folding, implementing CDR, and building the metrics module.
 
 ---
 
 ## Objectives
 
 1. Study and model common noise sources on NISQ devices.
-2. Implement major Quantum Error Mitigation techniques from scratch.
+2. Implement major Quantum Error Mitigation techniques from scratch and via Mitiq.
 3. Benchmark mitigation methods against standard quantum circuits.
 4. Analyze trade-offs between accuracy improvement and computational overhead.
 
@@ -34,9 +39,9 @@ quantum-error-mitigation/
 │   ├── mitigation/        # MEM, ZNE, PEC implementations + demo entry points
 │   ├── backends/          # AerSimulator wrapper (run_circuit)
 │   ├── plotting/          # Circuit, histogram, and ZNE plot utilities
-│   ├── benchmarks/        # Planned
-│   ├── metrics/           # Planned
-│   └── common/            # Planned
+│   ├── benchmarks/        # Planned — QFT, VQE, QAOA circuits
+│   ├── metrics/           # Planned — fidelity, accuracy, overhead metrics
+│   └── common/            # Planned — shared utilities
 │
 ├── experiments/
 │   ├── basics/            # Introductory Qiskit scripts (gates, measurement, drawing)
@@ -45,7 +50,7 @@ quantum-error-mitigation/
 ├── notebooks/
 │   └── grovers_8q.ipynb   # Grover's algorithm (8 qubits)
 │
-├── tests/                 # Planned
+├── tests/                 # Planned — unit and integration test suite
 ├── data/
 │   ├── raw/
 │   └── processed/
@@ -101,7 +106,7 @@ pip install -r requirements.txt
 
 ## Running Experiments
 
-All experiments are launched through `run.py`. Activate the environment first:
+All experiments are launched through `run.py`. Activate the virtual environment first:
 
 ```bash
 source qiskit-env/bin/activate
@@ -128,9 +133,9 @@ python run.py combined      # All noise types combined on Bell state
 ### Error Mitigation Experiments
 
 ```bash
-python run.py mem           # Measurement Error Mitigation (matrix inversion)
-python run.py zne           # Zero Noise Extrapolation (linear fit)
-python run.py pec           # Probabilistic Error Cancellation (custom scheme)
+python run.py mem           # Measurement Error Mitigation (calibration matrix inversion)
+python run.py zne           # Zero Noise Extrapolation (linear fit, noise scaling 1×–3×)
+python run.py pec           # Probabilistic Error Cancellation (custom correction scheme)
 ```
 
 Each experiment prints results to the terminal and saves circuit diagrams and measurement histograms to `results/figures/`.
@@ -148,18 +153,18 @@ Each experiment prints results to the terminal and saves circuit diagrams and me
 
 ### Noise Models (`src/noise_models/`)
 
-| Model | Gate targets |
-|---|---|
-| Depolarizing | H, CX |
-| Amplitude damping | H, CX |
-| Phase damping | H, CX |
-| Readout error | All qubits (measurement) |
-| Coherent gate error | H, CX (via RX rotation) |
-| Combined | Depolarizing + amplitude + phase + readout |
+| Model | Gate Targets | Parameter |
+|---|---|---|
+| Depolarizing | H, CX | error probability |
+| Amplitude damping | H, CX | damping parameter γ |
+| Phase damping | H, CX | dephasing parameter γ |
+| Readout error | All qubits (measurement) | flip probability |
+| Coherent gate error | H, CX | RX rotation angle |
+| Combined | H, CX + all qubits | single error probability |
 
 ### Simulator Backend (`src/backends/`)
 
-- `run_circuit` — thin wrapper around `AerSimulator` supporting optional noise models and configurable shot count.
+`run_circuit` — thin wrapper around `AerSimulator` with optional noise model and configurable shot count.
 
 ### Plotting Utilities (`src/plotting/`)
 
@@ -167,15 +172,16 @@ Each experiment prints results to the terminal and saves circuit diagrams and me
 |---|---|
 | `circuit_plotter` | Circuit diagram PNG saved to `results/figures/` |
 | `histogram_plotter` | Measurement histogram PNG (ideal / noisy / mitigated) |
-| `zne_plotter` | Noise-scaling plot with linear extrapolation to zero noise |
+| `zne_plotter` | Noise-scaling scatter plot with linear extrapolation line |
 
 ### Error Mitigation (`src/mitigation/`)
 
-| Technique | Status | Approach |
+| Technique | Status | Implementation |
 |---|---|---|
-| Measurement Error Mitigation (MEM) | **Complete** | 4×4 calibration matrix, matrix inversion |
-| Zero Noise Extrapolation (ZNE) | **Complete** | Linear extrapolation across noise scaling factors 1×, 2×, 3× |
-| Probabilistic Error Cancellation (PEC) | **In progress** | Custom correction-factor scheme; Mitiq integration planned |
+| Measurement Error Mitigation (MEM) | ✅ Complete | 4×4 calibration matrix, matrix inversion |
+| Zero Noise Extrapolation (ZNE) | ✅ Complete | Linear extrapolation, noise scaling 1×/2×/3× |
+| Probabilistic Error Cancellation (PEC) | 🔄 In Progress | Custom correction-factor scheme; proper quasi-probability implementation via Mitiq planned |
+| Clifford Data Regression (CDR) | ⏳ Planned | Mitiq integration |
 
 ---
 
@@ -186,7 +192,7 @@ Each experiment prints results to the terminal and saves circuit diagrams and me
 | Python | 3.12 | Runtime |
 | [Qiskit](https://www.ibm.com/quantum/qiskit) | 2.4.2 | Circuit construction and execution |
 | [Qiskit Aer](https://github.com/Qiskit/qiskit-aer) | 0.17.2 | Noisy quantum simulation |
-| [Mitiq](https://mitiq.readthedocs.io/) | 1.0.0 | Error mitigation library (prepared for Phase II integration) |
+| [Mitiq](https://mitiq.readthedocs.io/) | 1.0.0 | Error mitigation library |
 | [Cirq](https://quantumai.google/cirq) | 1.6.1 | Mitiq backend dependency |
 | [NumPy](https://numpy.org/) | 2.2.6 | Numerical computation |
 | [SciPy](https://scipy.org/) | 1.17.1 | Scientific computing |
@@ -195,15 +201,27 @@ Each experiment prints results to the terminal and saves circuit diagrams and me
 
 ---
 
-## Future Work
+## Phase II Completion Checklist
 
-- Full Mitiq integration for ZNE and PEC
-- Clifford Data Regression (CDR)
-- Virtual Distillation
+- [x] MEM — calibration matrix + matrix inversion
+- [x] ZNE — linear extrapolation across noise scaling factors
+- [ ] ZNE — upgrade to circuit folding (gate-level noise amplification)
+- [ ] ZNE — add Richardson / polynomial extrapolation
+- [ ] PEC — replace custom heuristic with proper quasi-probability implementation via Mitiq
+- [ ] CDR — implement Clifford Data Regression via Mitiq
+- [ ] Metrics module — fidelity, expectation value accuracy, error reduction %, sampling overhead
+- [ ] Fix: remove duplicate `plt.show()` call in `zne_plotter.py`
+- [ ] Unit tests for mitigation functions
+
+---
+
+## Planned Work (Phase III & IV)
+
+- QFT, VQE, and QAOA benchmark circuits
+- Automated benchmarking suite across noise levels and circuit depths
+- Performance comparison table (ZNE vs PEC vs MEM vs CDR)
 - Dynamical Decoupling
-- Automated benchmarking suite
-- Performance metrics module (fidelity, sampling overhead)
-- Unit and integration test suite
+- Virtual Distillation
 
 ---
 
