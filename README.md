@@ -8,14 +8,9 @@ Built with [Qiskit](https://www.ibm.com/quantum/qiskit), [Qiskit Aer](https://gi
 
 ## Project Status
 
-| Phase | Status | Notes |
-|---|---|---|
-| Phase I — Noise Modelling | ✅ Complete | All 6 noise models implemented and validated |
-| Phase II — Error Mitigation | 🔄 In Progress | MEM complete · ZNE complete · PEC in progress · CDR planned |
-| Phase III — Benchmarking | ⏳ Planned | QFT, VQE, QAOA circuits pending |
-| Phase IV — Performance Analysis | ⏳ Planned | Metrics module pending |
+**Phase I — Complete.** All six noise models implemented and validated against Bell and GHZ benchmark circuits.
 
-**Current focus:** Completing Phase II — replacing the custom PEC heuristic with proper quasi-probability PEC via Mitiq, upgrading ZNE to use circuit folding, implementing CDR, and building the metrics module.
+**Phase II — In Progress.** Measurement Error Mitigation (MEM) and Zero Noise Extrapolation (ZNE) are fully implemented and producing results. Probabilistic Error Cancellation (PEC) is implemented with a custom correction scheme; Mitiq integration is prepared but not yet wired in.
 
 ---
 
