@@ -44,4 +44,3 @@ def save_zne_plot(
     plt.legend()  # Show legend.
 
     plt.savefig(output_dir / f"{filename}_zne_plot.png")  # Save the graph.
-    plt.show()  # Display the graph.
