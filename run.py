@@ -12,6 +12,8 @@ from src.mitigation.mem_demo import main as mem
 from src.mitigation.zne import main as zne
 from src.mitigation.pec import main as pec
 from src.mitigation.cdr import main as cdr
+from src.mitigation.vd import main as vd
+from src.mitigation.dd import main as dd
 
 EXPERIMENTS = {
     "bell": bell,
@@ -26,6 +28,8 @@ EXPERIMENTS = {
     "zne": zne,
     "pec": pec,
     "cdr": cdr,
+    "vd":  vd,
+    "dd":  dd,
 }  # Maps short names to experiment entry points.
 
 
