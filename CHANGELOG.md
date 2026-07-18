@@ -11,7 +11,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### In Progress
 - Probabilistic Error Cancellation (PEC) — replacing custom correction heuristic with proper
   quasi-probability implementation via Mitiq
-- ZNE upgrade — circuit folding for gate-level noise amplification; Richardson/polynomial extrapolation
+
+### Recently Completed
+- ZNE upgraded to circuit folding — gate-level noise amplification via G G† G repetition
+- Richardson extrapolation added alongside linear — both methods run and compared on every ZNE experiment
+- Fixed duplicate `plt.show()` in `zne_plotter.py`
 
 ### Planned (Phase II completion)
 - Clifford Data Regression (CDR) via Mitiq
