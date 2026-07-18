@@ -1,6 +1,2 @@
-# Performance metrics for evaluating error mitigation effectiveness.
-# Planned modules:
-#   fidelity.py         — state and process fidelity calculations
-#   expectation.py      — expectation value accuracy
-#   overhead.py         — sampling and runtime overhead analysis
-#   scalability.py      — metrics across qubit counts and circuit depths
+# Metrics module — standardised scoring for all mitigation techniques.
+# metrics.py: error_reduction, fidelity, sampling_overhead, runtime_overhead, summarise

@@ -1,3 +1,2 @@
-# Benchmarking utilities.
-# Planned: automated benchmark runners for Bell, GHZ, QFT, VQE, QAOA circuits
-# across varying noise levels, qubit counts, and circuit depths.
+# Benchmarking suite.
+# benchmark.py — runs all 6 techniques on Bell, GHZ-3, QFT-3 across noise levels 1%-20%

@@ -14,6 +14,7 @@ from src.mitigation.pec import main as pec
 from src.mitigation.cdr import main as cdr
 from src.mitigation.vd import main as vd
 from src.mitigation.dd import main as dd
+from src.benchmarks.benchmark import main as benchmark
 
 EXPERIMENTS = {
     "bell": bell,
@@ -30,6 +31,7 @@ EXPERIMENTS = {
     "cdr": cdr,
     "vd":  vd,
     "dd":  dd,
+    "benchmark": benchmark,
 }  # Maps short names to experiment entry points.
 
 
