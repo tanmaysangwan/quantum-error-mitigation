@@ -83,9 +83,11 @@ def main():
     save_zne_plot(
         noise_factors,
         expectation_values,
-        richardson_estimate,   # Use Richardson as the primary plotted estimate.
+        richardson_estimate,
         "bell_state",
-    )  # Save the ZNE plot.
+        linear_estimate=linear_estimate,
+        ideal_value=ideal_expectation,
+    )  # Save the ZNE plot — shows both estimates and ideal reference.
 
     plt.show()
 

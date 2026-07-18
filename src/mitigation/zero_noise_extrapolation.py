@@ -82,12 +82,8 @@ def linear_extrapolation(noise_factors: list, expectation_values: list) -> float
         Estimated expectation value extrapolated to zero noise.
     """
 
-    coefficients = np.polyfit(noise_factors, expectation_values, 1)  # slope, intercept
-
-    slope = coefficients[0]      # Change in expectation value per unit noise.
-    intercept = coefficients[1]  # Estimated value at zero noise.
-
-    return intercept
+    coefficients = np.polyfit(noise_factors, expectation_values, 1)
+    return float(coefficients[1])  # Intercept = zero-noise estimate.
 
 
 def richardson_extrapolation(noise_factors: list, expectation_values: list) -> float:

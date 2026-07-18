@@ -16,6 +16,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - ZNE upgraded to circuit folding — gate-level noise amplification via G G† G repetition
 - Richardson extrapolation added alongside linear — both methods run and compared on every ZNE experiment
 - Fixed duplicate `plt.show()` in `zne_plotter.py`
+- PEC replaced with proper quasi-probability implementation — builds QPR of depolarizing channel,
+  computes gamma (sampling overhead), applies analytical inverse-noise correction
+- All plotting utilities fully relabelled — histograms, ZNE plot, and circuit diagrams now have
+  descriptive titles, axis labels, value annotations, colour coding, and footer explanations
+  readable by a lay audience
 
 ### Planned (Phase II completion)
 - Clifford Data Regression (CDR) via Mitiq
