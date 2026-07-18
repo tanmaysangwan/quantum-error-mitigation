@@ -11,6 +11,7 @@ from experiments.noise_demos.readout_error_demo import main as readout
 from src.mitigation.mem_demo import main as mem  
 from src.mitigation.zne import main as zne
 from src.mitigation.pec import main as pec
+from src.mitigation.cdr import main as cdr
 
 EXPERIMENTS = {
     "bell": bell,
@@ -24,6 +25,7 @@ EXPERIMENTS = {
     "mem": mem,
     "zne": zne,
     "pec": pec,
+    "cdr": cdr,
 }  # Maps short names to experiment entry points.
 
 

@@ -27,3 +27,4 @@ networkx==3.6.1
 # ============================================================
 mitiq==1.0.0          # Error mitigation library
 cirq-core==1.6.1      # Required by mitiq for some backends
+ply==3.11             # Required by mitiq's Qiskit circuit conversion path
