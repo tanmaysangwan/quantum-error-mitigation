@@ -15,46 +15,27 @@ from src.mitigation.probabilistic_error_cancellation import (
 )
 
 
-def _save_comparison_plot(
-    ideal_counts: dict,
-    noisy_counts: dict,
-    mitigated_counts: dict,
-    error_probability: float,
-    gamma: float,
-    filename: str,
-) -> None:
-    """Save a three-bar comparison chart: ideal vs noisy vs PEC-mitigated probabilities."""
+def _save_comparison_plot(ideal_ev, noisy_ev, mitigated_ev, error_probability, gamma, filename):
+    """Save a bar chart comparing ideal, noisy, and PEC-mitigated <ZZ> values."""
     output_dir = Path("results/figures/mitigated")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    states = ["00", "01", "10", "11"]
+    labels = ["Ideal", "Noisy", "PEC Mitigated"]
+    values = [ideal_ev, noisy_ev, mitigated_ev]
+    colors = ["#2196F3", "#F44336", "#4CAF50"]
 
-    def to_probs(counts):
-        total = sum(counts.values())
-        return [counts.get(s, 0) / total for s in states] if total > 0 else [0] * 4
+    fig, ax = plt.subplots(figsize=(8, 5))
+    bars = ax.bar(labels, values, color=colors, edgecolor="white", width=0.4)
 
-    x     = np.arange(len(states))
-    width = 0.25
-    fig, ax = plt.subplots(figsize=(10, 6))
+    for bar, val in zip(bars, values):
+        ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
+                f"{val:.4f}", ha="center", va="bottom", fontsize=10, fontweight="bold")
 
-    for offset, probs, label, color in [
-        (-width, to_probs(ideal_counts),     "Ideal", "#2196F3"),
-        (0,      to_probs(noisy_counts),     "Noisy", "#F44336"),
-        (+width, to_probs(mitigated_counts), "PEC",   "#4CAF50"),
-    ]:
-        bars = ax.bar(x + offset, probs, width, label=label, color=color, edgecolor="white")
-        for bar, prob in zip(bars, probs):
-            if prob > 0.01:
-                ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.01,
-                        f"{prob:.3f}", ha="center", va="bottom", fontsize=8, fontweight="bold")
-
-    ax.set_title("Probabilistic Error Cancellation (PEC) — Bell State", fontsize=14, fontweight="bold", pad=14)
-    ax.set_xlabel("Measured Bitstring", fontsize=11)
-    ax.set_ylabel("Probability", fontsize=11)
-    ax.set_xticks(x)
-    ax.set_xticklabels(["|00⟩", "|01⟩", "|10⟩", "|11⟩"], fontsize=10)
-    ax.set_ylim(0, 1.15)
-    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f"{y:.0%}"))
+    ax.set_title("Probabilistic Error Cancellation (PEC) — Bell State ⟨ZZ⟩",
+                 fontsize=14, fontweight="bold", pad=14)
+    ax.set_ylabel("⟨ZZ⟩ Expectation Value", fontsize=11)
+    ax.set_ylim(0, 1.2)
+    ax.axhline(y=ideal_ev, color="#9C27B0", linestyle="--", linewidth=1.2, alpha=0.6, label="Ideal reference")
     ax.grid(axis="y", linestyle="--", alpha=0.4, zorder=0)
     ax.set_axisbelow(True)
     ax.legend(fontsize=10)
@@ -85,19 +66,10 @@ def main():
     qpr   = build_quasi_probability_representation(error_probability)
     gamma = qpr["gamma"]
 
-    mitigated_counts = run_pec(
-        circuit,
-        noise_model=noise_model,
-        error_probability=error_probability,
-        num_samples=200,
-        shots_per_sample=1024,
-        seed=42,
-    )
-    save_histogram(mitigated_counts, "bell_state_pec", category="mitigated")
-    mitigated_ev = zz_expectation(mitigated_counts)
+    # Mitiq PEC: quasi-probability sampling via operation representations.
+    mitigated_ev = run_pec(circuit, noise_model, error_probability, num_samples=200, shots=1024)
 
-    _save_comparison_plot(ideal_counts, noisy_counts, mitigated_counts,
-                          error_probability, gamma, "bell_state")
+    _save_comparison_plot(ideal_ev, noisy_ev, mitigated_ev, error_probability, gamma, "bell_state")
 
     print("=" * 55)
     print("Probabilistic Error Cancellation (PEC) — Bell State")

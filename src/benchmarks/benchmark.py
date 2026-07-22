@@ -1,10 +1,3 @@
-"""
-Automated benchmarking suite.
-
-Runs all 6 mitigation techniques on Bell, GHZ, and QFT circuits
-across 5 noise levels and saves results to results/data/benchmark_results.csv.
-"""
-
 import csv
 import time
 from pathlib import Path
@@ -29,73 +22,76 @@ from src.mitigation.virtual_distillation import run_virtual_distillation
 from src.mitigation.dynamical_decoupling import run_dynamical_decoupling
 
 
-# ── Unified expectation value ──────────────────────────────────────────────────
-
-def population_fidelity(counts_a: dict, counts_b: dict) -> float:
-    """Bhattacharyya coefficient between two count distributions. Range [0, 1]."""
-    all_states = set(counts_a) | set(counts_b)
-    total_a    = sum(counts_a.values())
-    total_b    = sum(counts_b.values())
-    p_a = {s: counts_a.get(s, 0) / total_a for s in all_states}
-    p_b = {s: counts_b.get(s, 0) / total_b for s in all_states}
-    return float(sum(np.sqrt(p_a[s] * p_b[s]) for s in all_states))
-
-
 def get_ev(counts: dict, circuit_name: str) -> float:
-    """Return the appropriate expectation value for each circuit type."""
+    """Return the appropriate expectation value metric for each circuit type."""
     total = sum(counts.values())
+    if total == 0:
+        return 0.0
     if circuit_name == "Bell":
         return zz_expectation(counts)
     if circuit_name == "GHZ-3":
         return (counts.get("000", 0) + counts.get("111", 0)) / total
     if circuit_name == "QFT-3":
-        # QFT on |+>^3 concentrates output at |000>; use P(000) as the quality metric.
-        return counts.get("000", 0) / total
+        return counts.get("000", 0) / total  # QFT on |+>^3 concentrates at |000>
     return 0.0
 
 
-# ── Per-technique runners returning a single float ─────────────────────────────
+def clip_ev(ev: float, circuit_name: str) -> float:
+    """Clip expectation value to its valid range for the circuit type."""
+    if circuit_name == "Bell":
+        return float(np.clip(ev, -1.0, 1.0))
+    return float(np.clip(ev, 0.0, 1.0))
 
-def run_mem(circuit, noise_model) -> float | None:
-    """MEM: calibration matrix correction. Only valid for 2-qubit Bell circuits."""
-    if circuit.num_qubits != 2:
-        return None  # MEM calibration is Bell-basis specific
+
+def run_mem(circuit, noise_model, circuit_name) -> float:
+    """MEM: build readout calibration matrix and correct noisy counts."""
     readout_nm   = create_readout_error_model(0.05)
     noisy_counts = run_circuit(circuit, noise_model=readout_nm)
-    cal_matrix   = build_calibration_matrix(readout_nm)
-    mitigated    = mitigate_counts(noisy_counts, cal_matrix)
-    return zz_expectation(mitigated)
+    cal_matrix, states = build_calibration_matrix(readout_nm, num_qubits=circuit.num_qubits)
+    mitigated    = mitigate_counts(noisy_counts, cal_matrix, states=states)
+    return get_ev(mitigated, circuit_name)
 
 
 def run_zne(circuit, noise_model, circuit_name) -> float:
     """ZNE: fold gates at 1x/3x/5x and Richardson-extrapolate to zero noise."""
-    noise_factors = [1, 3, 5]
-    evs = []
-    for sf in noise_factors:
-        folded = fold_gates(circuit, sf)
-        counts = run_circuit(folded, noise_model=noise_model)
-        evs.append(get_ev(counts, circuit_name))
-    return richardson_extrapolation(noise_factors, evs)
+    evs = [get_ev(run_circuit(fold_gates(circuit, sf), noise_model=noise_model), circuit_name)
+           for sf in [1, 3, 5]]
+    return richardson_extrapolation([1, 3, 5], evs)
 
 
 def run_pec_bench(circuit, noise_model, error_probability, circuit_name) -> float:
-    """PEC: Monte Carlo quasi-probability sampling (Bell only; others use ZNE fallback)."""
-    if circuit.num_qubits > 2:
-        return run_zne(circuit, noise_model, circuit_name)  # PEC is 2-qubit specific here
-    mitigated_counts = run_pec(circuit, noise_model, error_probability,
-                                num_samples=100, shots_per_sample=1024, seed=42)
-    return get_ev(mitigated_counts, circuit_name)
+    """PEC: Mitiq quasi-probability sampling. Falls back to ZNE for non-Bell circuits."""
+    if circuit.num_qubits == 2:
+        return run_pec(circuit, noise_model, error_probability, num_samples=100, shots=1024)
+    # PEC with Mitiq for multi-qubit circuits using local depolarizing representations.
+    from qiskit import transpile
+    from qiskit_aer import AerSimulator
+    from mitiq.pec import execute_with_pec, represent_operations_in_circuit_with_local_depolarizing_noise
+    import warnings
+
+    native = transpile(circuit, basis_gates=["rz", "sx", "cx"], optimization_level=0)
+
+    def executor(circ):
+        sim = AerSimulator(noise_model=noise_model)
+        return get_ev(sim.run(circ, shots=1024).result().get_counts(), circuit_name)
+
+    reps = represent_operations_in_circuit_with_local_depolarizing_noise(
+        native, noise_level=error_probability
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        result = execute_with_pec(native, executor, representations=reps, num_samples=50)
+    return float(result)
 
 
-def run_cdr_bench(circuit, noise_model, circuit_name) -> float | None:
-    """CDR: Mitiq training circuit regression. Only valid for 2-qubit circuits."""
-    if circuit.num_qubits != 2:
-        return None  # CDR executor returns zz_expectation which is 2-qubit specific
-    return run_cdr(circuit, noise_model, num_training_circuits=10, shots=1024)
+def run_cdr_bench(circuit, noise_model, circuit_name) -> float:
+    """CDR: Mitiq training circuit regression."""
+    evaluator = lambda counts: get_ev(counts, circuit_name)
+    return run_cdr(circuit, noise_model, num_training_circuits=10, shots=1024, evaluator=evaluator)
 
 
 def run_vd_bench(circuit, noise_model, circuit_name) -> float:
-    """VD: squared density matrix estimator, generalised to any circuit type."""
+    """VD: squared density matrix estimator Tr(rho^2 * O) / Tr(rho^2)."""
     counts = run_circuit(circuit, shots=8192, noise_model=noise_model)
     total  = sum(counts.values())
     probs  = {s: c / total for s, c in counts.items()}
@@ -104,60 +100,43 @@ def run_vd_bench(circuit, noise_model, circuit_name) -> float:
         return 0.0
     if circuit_name == "Bell":
         num = sum((1 if s in ("00", "11") else -1) * p ** 2 for s, p in probs.items())
-        return float(np.clip(num / denom, -1.0, 1.0))
-    if circuit_name == "GHZ-3":
-        num = sum((1 if s in ("000", "111") else -1) * p ** 2 for s, p in probs.items())
-        return float(np.clip((num / denom + 1.0) / 2.0, 0.0, 1.0))
-    if circuit_name == "QFT-3":
-        # Correct state is |000>; boost its squared probability, suppress others.
-        num = sum((1 if s == "000" else -1) * p ** 2 for s, p in probs.items())
-        return float(np.clip((num / denom + 1.0) / 2.0, 0.0, 1.0))
-    return 0.0
+        return num / denom
+    # GHZ-3 and QFT-3: normalise to [0, 1]
+    correct = ("000", "111") if circuit_name == "GHZ-3" else ("000",)
+    num = sum((1 if s in correct else -1) * p ** 2 for s, p in probs.items())
+    return (num / denom + 1.0) / 2.0
 
 
-def run_dd_bench(circuit, noise_model, circuit_name) -> float | None:
-    """DD: Mitiq XYXY pulse sequences. Only valid for 2-qubit circuits."""
-    if circuit.num_qubits != 2:
-        return None  # DD executor uses zz_expectation which is 2-qubit specific
-    return run_dynamical_decoupling(circuit, noise_model, rule="xyxy", num_trials=5, shots=2048)
+def run_dd_bench(circuit, noise_model, circuit_name) -> float:
+    """DD: Mitiq XYXY pulse sequences inserted into idle windows."""
+    evaluator = lambda counts: get_ev(counts, circuit_name)
+    return run_dynamical_decoupling(circuit, noise_model, rule="xyxy",
+                                    num_trials=5, shots=2048, evaluator=evaluator)
 
 
-# ── Main benchmark loop ────────────────────────────────────────────────────────
-
-CIRCUITS = {
-    "Bell":  create_bell_state(),
-    "GHZ-3": create_ghz_state(3),
-    "QFT-3": create_qft(3),
-}
-
+CIRCUITS    = {"Bell": create_bell_state(), "GHZ-3": create_ghz_state(3), "QFT-3": create_qft(3)}
 NOISE_LEVELS = [0.01, 0.05, 0.10, 0.15, 0.20]
-
-TECHNIQUES = ["MEM", "ZNE", "PEC", "CDR", "VD", "DD"]
+TECHNIQUES  = ["MEM", "ZNE", "PEC", "CDR", "VD", "DD"]
 
 
 def run_benchmark() -> list[dict]:
-    """Run all techniques × circuits × noise levels. Returns list of result dicts."""
+    """Run all 6 techniques × 3 circuits × 5 noise levels. Returns list of result dicts."""
     results = []
 
     for circuit_name, circuit in CIRCUITS.items():
-        print(f"\n{'='*60}")
-        print(f"Circuit: {circuit_name}")
-        print(f"{'='*60}")
+        print(f"\nCircuit: {circuit_name}")
 
         for noise_level in NOISE_LEVELS:
-            print(f"\n  Noise level: {noise_level:.0%}")
-            noise_model = create_depolarizing_noise_model(noise_level)
-
-            ideal_counts = run_circuit(circuit, shots=4096)
-            noisy_counts = run_circuit(circuit, shots=4096, noise_model=noise_model)
-            ideal_ev     = get_ev(ideal_counts, circuit_name)
-            noisy_ev     = get_ev(noisy_counts, circuit_name)
+            print(f"  Noise: {noise_level:.0%}")
+            noise_model  = create_depolarizing_noise_model(noise_level)
+            ideal_ev     = get_ev(run_circuit(circuit, shots=4096), circuit_name)
+            noisy_ev     = get_ev(run_circuit(circuit, shots=4096, noise_model=noise_model), circuit_name)
 
             for technique in TECHNIQUES:
                 t_start = time.perf_counter()
                 try:
                     if technique == "MEM":
-                        mitigated_ev = run_mem(circuit, noise_model)
+                        mitigated_ev = run_mem(circuit, noise_model, circuit_name)
                         overhead     = sampling_overhead("MEM")
                     elif technique == "ZNE":
                         mitigated_ev = run_zne(circuit, noise_model, circuit_name)
@@ -175,23 +154,21 @@ def run_benchmark() -> list[dict]:
                     elif technique == "DD":
                         mitigated_ev = run_dd_bench(circuit, noise_model, circuit_name)
                         overhead     = sampling_overhead("DD", num_trials=5)
+
+                    mitigated_ev = clip_ev(mitigated_ev, circuit_name)
                 except Exception as e:
                     print(f"    {technique}: FAILED — {e}")
                     continue
 
-                if mitigated_ev is None:
-                    print(f"    {technique:<4}  N/A for {circuit_name}")
-                    continue
-
                 runtime = round(time.perf_counter() - t_start, 2)
                 row     = summarise(technique, ideal_ev, noisy_ev, mitigated_ev, overhead)
-                row["circuit"]      = circuit_name
-                row["noise_level"]  = noise_level
-                row["runtime_s"]    = runtime
+                row["circuit"]     = circuit_name
+                row["noise_level"] = noise_level
+                row["runtime_s"]   = runtime
                 results.append(row)
 
                 print(f"    {technique:<4}  fidelity={row['fidelity']:.4f}  "
-                      f"error_reduction={row['error_reduction_%']:.1f}%  "
+                      f"reduction={row['error_reduction_%']:.1f}%  "
                       f"overhead={overhead:.2f}x  time={runtime}s")
 
     return results

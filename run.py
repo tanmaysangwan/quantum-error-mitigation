@@ -15,6 +15,9 @@ from src.mitigation.cdr import main as cdr
 from src.mitigation.vd import main as vd
 from src.mitigation.dd import main as dd
 from src.benchmarks.benchmark import main as benchmark
+from src.benchmarks.visualise import main as visualise
+from experiments.vqe_demo import main as vqe
+from experiments.qaoa_demo import main as qaoa
 
 EXPERIMENTS = {
     "bell": bell,
@@ -32,6 +35,9 @@ EXPERIMENTS = {
     "vd":  vd,
     "dd":  dd,
     "benchmark": benchmark,
+    "visualise": visualise,
+    "vqe":       vqe,
+    "qaoa":      qaoa,
 }  # Maps short names to experiment entry points.
 
 

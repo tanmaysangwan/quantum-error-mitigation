@@ -1,8 +1,12 @@
+import warnings
 import numpy as np
-from qiskit import QuantumCircuit
+from qiskit import QuantumCircuit, transpile
+from qiskit_aer import AerSimulator
 from qiskit_aer.noise import NoiseModel
-
-from src.backends.simulator import run_circuit
+from mitiq.pec import (
+    execute_with_pec,
+    represent_operations_in_circuit_with_global_depolarizing_noise,
+)
 
 
 def build_quasi_probability_representation(error_probability: float) -> dict:
@@ -19,7 +23,7 @@ def build_quasi_probability_representation(error_probability: float) -> dict:
         }
 
     q_I          = (1.0 + 3.0 * alpha) / (4.0 * alpha)
-    q_P          = -(1.0 - alpha) / (4.0 * alpha)  # same value for X, Y, Z
+    q_P          = -(1.0 - alpha) / (4.0 * alpha)
     quasi_probs  = {"I": q_I, "X": q_P, "Y": q_P, "Z": q_P}
     gamma        = abs(q_I) + 3.0 * abs(q_P)
     probabilities = {op: abs(q) / gamma for op, q in quasi_probs.items()}
@@ -27,34 +31,6 @@ def build_quasi_probability_representation(error_probability: float) -> dict:
 
     return {"quasi_probs": quasi_probs, "gamma": gamma,
             "probabilities": probabilities, "signs": signs}
-
-
-def _sample_pauli(probabilities: dict, rng: np.random.Generator) -> str:
-    """Sample one Pauli label (I/X/Y/Z) weighted by sampling probabilities."""
-    ops = list(probabilities.keys())
-    return rng.choice(ops, p=[probabilities[op] for op in ops])
-
-
-def _insert_pauli(circuit: QuantumCircuit, pauli: str, qubit: int) -> QuantumCircuit:
-    """Return a copy of circuit with a Pauli gate inserted on qubit before measurements."""
-    gate_data    = [(i, q, c) for i, q, c in circuit.data if i.name != "measure"]
-    measure_data = [(i, q, c) for i, q, c in circuit.data if i.name == "measure"]
-
-    new_circ = QuantumCircuit(*circuit.qregs, *circuit.cregs)
-    for i, q, c in gate_data:
-        new_circ.append(i, q, c)
-
-    if pauli == "X":
-        new_circ.x(qubit)
-    elif pauli == "Y":
-        new_circ.y(qubit)
-    elif pauli == "Z":
-        new_circ.z(qubit)
-
-    for i, q, c in measure_data:
-        new_circ.append(i, q, c)
-
-    return new_circ
 
 
 def zz_expectation(counts: dict) -> float:
@@ -71,43 +47,32 @@ def run_pec(
     noise_model: NoiseModel,
     error_probability: float,
     num_samples: int = 200,
-    shots_per_sample: int = 1024,
-    seed: int = 42,
-) -> dict:
-    """Run PEC via Monte Carlo quasi-probability sampling and return mitigated counts.
+    shots: int = 1024,
+) -> float:
+    """Run PEC via Mitiq's quasi-probability sampling and return the mitigated <ZZ> value.
 
-    Each sample independently draws a Pauli correction per gate application from the
-    QPR, applies it to the circuit, runs under noise, and accumulates sign * <ZZ>.
-    Final estimate: gamma^n_gates * mean(signed_estimators).
-    Bell circuit: 3 qubit-gate applications (H on q0, CX on q0, CX on q1).
+    Transpiles to {Rz, SX, CX}, builds operation representations for the depolarizing channel,
+    then calls Mitiq's execute_with_pec which handles all Monte Carlo sampling internally.
     """
-    qpr          = build_quasi_probability_representation(error_probability)
-    gamma        = qpr["gamma"]
-    n_gates      = 3  # H(q0), CX(q0), CX(q1)
-    total_gamma  = gamma ** n_gates
-    rng          = np.random.default_rng(seed)
-    signed_evs   = []
+    native = transpile(circuit, basis_gates=["rz", "sx", "cx"], optimization_level=0)
 
-    for _ in range(num_samples):
-        sampled = [_sample_pauli(qpr["probabilities"], rng) for _ in range(n_gates)]
-        sign    = int(np.prod([qpr["signs"][p] for p in sampled]))
+    def executor(circ: QuantumCircuit) -> float:
+        sim = AerSimulator(noise_model=noise_model)
+        return zz_expectation(sim.run(circ, shots=shots).result().get_counts())
 
-        # Apply sampled Pauli corrections: sampled[0] → q0 (H), sampled[2] → q1 (CX target).
-        corrected = _insert_pauli(circuit, sampled[0], qubit=0)
-        corrected = _insert_pauli(corrected, sampled[2], qubit=1)
+    representations = represent_operations_in_circuit_with_global_depolarizing_noise(
+        native, noise_level=error_probability
+    )
 
-        counts = run_circuit(corrected, shots=shots_per_sample, noise_model=noise_model)
-        signed_evs.append(sign * zz_expectation(counts))
+    # Suppress Mitiq's warnings about measurement gates having no representation (expected).
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        result = execute_with_pec(
+            native,
+            executor=executor,
+            representations=representations,
+            num_samples=num_samples,
+            random_state=42,
+        )
 
-    mitigated_ev = float(np.clip(total_gamma * np.mean(signed_evs), -1.0, 1.0))
-
-    # Reconstruct counts from the scalar <ZZ> estimate assuming symmetric Bell state.
-    p_corr  = (1.0 + mitigated_ev) / 2.0
-    p_error = (1.0 - mitigated_ev) / 2.0
-    counts  = {
-        "00": round(p_corr  * shots_per_sample / 2),
-        "11": round(p_corr  * shots_per_sample / 2),
-        "01": round(p_error * shots_per_sample / 2),
-        "10": round(p_error * shots_per_sample / 2),
-    }
-    return {s: c for s, c in counts.items() if c > 0}
+    return float(np.clip(result, -1.0, 1.0))
