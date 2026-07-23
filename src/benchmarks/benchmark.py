@@ -8,6 +8,8 @@ from src.backends.simulator import run_circuit
 from src.circuits.bell_state import create_bell_state
 from src.circuits.ghz import create_ghz_state
 from src.circuits.qft import create_qft
+from src.circuits.qaoa import create_qaoa, qaoa_cut_value
+from src.circuits.vqe import H2_EXACT_ENERGY, run_vqe, evaluate_energy
 from src.noise_models.depolarizing_noise import create_depolarizing_noise_model
 from src.noise_models.readout_error import create_readout_error_model
 from src.metrics.metrics import sampling_overhead, summarise
@@ -21,6 +23,10 @@ from src.mitigation.clifford_data_regression import run_cdr
 from src.mitigation.virtual_distillation import run_virtual_distillation
 from src.mitigation.dynamical_decoupling import run_dynamical_decoupling
 
+# VQE energy range for normalised fidelity: [noisy_floor, ideal_energy].
+# Energies are negative (hartree), so we normalise to [0,1] for consistent metrics.
+_VQE_ENERGY_RANGE = abs(H2_EXACT_ENERGY)  # ~1.857 — used to scale errors
+
 
 def get_ev(counts: dict, circuit_name: str) -> float:
     """Return the appropriate expectation value metric for each circuit type."""
@@ -33,6 +39,8 @@ def get_ev(counts: dict, circuit_name: str) -> float:
         return (counts.get("000", 0) + counts.get("111", 0)) / total
     if circuit_name == "QFT-3":
         return counts.get("000", 0) / total  # QFT on |+>^3 concentrates at |000>
+    if circuit_name == "QAOA-C4":
+        return qaoa_cut_value(counts)        # expected cut value in [0, 4]
     return 0.0
 
 
@@ -40,6 +48,8 @@ def clip_ev(ev: float, circuit_name: str) -> float:
     """Clip expectation value to its valid range for the circuit type."""
     if circuit_name == "Bell":
         return float(np.clip(ev, -1.0, 1.0))
+    if circuit_name == "QAOA-C4":
+        return float(np.clip(ev, 0.0, 4.0))
     return float(np.clip(ev, 0.0, 1.0))
 
 
@@ -101,6 +111,11 @@ def run_vd_bench(circuit, noise_model, circuit_name) -> float:
     if circuit_name == "Bell":
         num = sum((1 if s in ("00", "11") else -1) * p ** 2 for s, p in probs.items())
         return num / denom
+    if circuit_name == "QAOA-C4":
+        # Weight each bitstring by its cut value (in [0,4]) scaled to [-1,+1].
+        # This gives VD a meaningful signal for the Max-Cut observable.
+        num = sum(((qaoa_cut_value({s: 1}) / 2.0) - 1.0) * p ** 2 for s, p in probs.items())
+        return (num / denom + 1.0) * 2.0   # rescale back to [0, 4]
     # GHZ-3 and QFT-3: normalise to [0, 1]
     correct = ("000", "111") if circuit_name == "GHZ-3" else ("000",)
     num = sum((1 if s in correct else -1) * p ** 2 for s, p in probs.items())
@@ -114,15 +129,95 @@ def run_dd_bench(circuit, noise_model, circuit_name) -> float:
                                     num_trials=5, shots=2048, evaluator=evaluator)
 
 
-CIRCUITS    = {"Bell": create_bell_state(), "GHZ-3": create_ghz_state(3), "QFT-3": create_qft(3)}
+# ---------------------------------------------------------------------------
+# VQE — special path: uses Estimator + Hamiltonian, not counts-based get_ev.
+# Returns energy (hartree). Fidelity is computed relative to H2_EXACT_ENERGY.
+# ---------------------------------------------------------------------------
+
+def _run_vqe_zne(optimal_params, noise_model) -> float:
+    """ZNE for VQE: fold the bound ansatz at 1x/3x/5x and Richardson-extrapolate."""
+    from qiskit.circuit.library import n_local
+    from qiskit_aer.primitives import Estimator
+    from src.circuits.vqe import H2_HAMILTONIAN
+
+    ansatz = n_local(2, ["ry", "rz"], "cx", reps=1)
+    bound  = ansatz.assign_parameters(optimal_params)
+    evs    = []
+    for sf in [1, 3, 5]:
+        folded    = fold_gates(bound, sf)
+        estimator = Estimator(backend_options={"noise_model": noise_model})
+        ev        = estimator.run([folded], [H2_HAMILTONIAN], [[]]).result().values[0]
+        evs.append(ev)
+    return richardson_extrapolation([1, 3, 5], evs)
+
+
+def _vqe_fidelity(energy: float) -> float:
+    """Normalised fidelity for VQE: 1 - |energy - exact| / |exact|. Clipped to [0,1]."""
+    return float(np.clip(1.0 - abs(energy - H2_EXACT_ENERGY) / _VQE_ENERGY_RANGE, 0.0, 1.0))
+
+
+def run_vqe_benchmark(noise_level: float) -> list[dict]:
+    """Run VQE benchmark: only ZNE is applicable (Estimator-based, not counts-based).
+
+    MEM/CDR/DD/PEC require counts → not compatible with Estimator primitive.
+    VD requires P(s)^2 from counts → not applicable.
+    ZNE via circuit folding + Richardson is the standard approach for VQE.
+    """
+    from qiskit_aer.noise import NoiseModel, depolarizing_error
+
+    # Build noise model matching the rest of the benchmark (depolarizing on all gates).
+    nm = NoiseModel()
+    nm.add_all_qubit_quantum_error(depolarizing_error(noise_level, 1), ["ry", "rz"])
+    nm.add_all_qubit_quantum_error(depolarizing_error(noise_level, 2), ["cx"])
+
+    # Ideal VQE — find optimal parameters once per noise level sweep.
+    ideal_energy, optimal_params = run_vqe(noise_model=None, maxiter=200)
+    noisy_energy   = evaluate_energy(optimal_params, noise_model=nm)
+
+    results = []
+    technique = "ZNE"
+    t_start = time.perf_counter()
+    try:
+        mitigated_energy = _run_vqe_zne(optimal_params, nm)
+        runtime = round(time.perf_counter() - t_start, 2)
+
+        # Use energy directly for the row; fidelity normalised vs exact FCI.
+        row = {
+            "circuit":           "VQE",
+            "noise_level":       noise_level,
+            "technique":         technique,
+            "ideal_ev":          round(ideal_energy, 4),
+            "noisy_ev":          round(noisy_energy, 4),
+            "mitigated_ev":      round(mitigated_energy, 4),
+            "error_before":      round(abs(noisy_energy - ideal_energy), 4),
+            "error_after":       round(abs(mitigated_energy - ideal_energy), 4),
+            "error_reduction_%": round((1 - abs(mitigated_energy - ideal_energy) /
+                                        max(abs(noisy_energy - ideal_energy), 1e-9)) * 100, 1),
+            "fidelity":          round(_vqe_fidelity(mitigated_energy), 4),
+            "sampling_overhead": round(sampling_overhead("ZNE", num_scale_factors=3), 3),
+            "runtime_s":         runtime,
+        }
+        results.append(row)
+        print(f"    ZNE   ideal={ideal_energy:.4f}  noisy={noisy_energy:.4f}  "
+              f"mitigated={mitigated_energy:.4f}  reduction={row['error_reduction_%']:.1f}%  "
+              f"time={runtime}s")
+    except Exception as e:
+        print(f"    ZNE: FAILED — {e}")
+
+    return results
+
+
+CIRCUITS     = {"Bell": create_bell_state(), "GHZ-3": create_ghz_state(3),
+                "QFT-3": create_qft(3), "QAOA-C4": create_qaoa()}
 NOISE_LEVELS = [0.01, 0.05, 0.10, 0.15, 0.20]
-TECHNIQUES  = ["MEM", "ZNE", "PEC", "CDR", "VD", "DD"]
+TECHNIQUES   = ["MEM", "ZNE", "PEC", "CDR", "VD", "DD"]
 
 
 def run_benchmark() -> list[dict]:
-    """Run all 6 techniques × 3 circuits × 5 noise levels. Returns list of result dicts."""
+    """Run all 6 techniques × 4 circuits × 5 noise levels, plus VQE-ZNE × 5 noise levels."""
     results = []
 
+    # --- Counts-based circuits: Bell, GHZ-3, QFT-3, QAOA-C4 ---
     for circuit_name, circuit in CIRCUITS.items():
         print(f"\nCircuit: {circuit_name}")
 
@@ -170,6 +265,12 @@ def run_benchmark() -> list[dict]:
                 print(f"    {technique:<4}  fidelity={row['fidelity']:.4f}  "
                       f"reduction={row['error_reduction_%']:.1f}%  "
                       f"overhead={overhead:.2f}x  time={runtime}s")
+
+    # --- VQE: Estimator-based, ZNE only ---
+    print("\nCircuit: VQE (H2 ground state, ZNE only)")
+    for noise_level in NOISE_LEVELS:
+        print(f"  Noise: {noise_level:.0%}")
+        results.extend(run_vqe_benchmark(noise_level))
 
     return results
 

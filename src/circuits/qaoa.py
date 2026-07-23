@@ -122,7 +122,9 @@ def qaoa_cut_value(
     expected_cut = 0.0
     for bitstring, count in counts.items():
         # Qiskit bitstrings are right-to-left: bitstring[-(q+1)] = qubit q.
-        bits = [int(bitstring[-(q + 1)]) for q in range(len(bitstring))]
+        # Strip spaces — Mitiq/Cirq may return space-separated bitstrings.
+        bs   = bitstring.replace(" ", "")
+        bits = [int(bs[-(q + 1)]) for q in range(len(bs))]
         cut  = sum(w * (bits[u] ^ bits[v]) for (u, v), w in zip(edges, weights))
         expected_cut += (count / total) * cut
 
