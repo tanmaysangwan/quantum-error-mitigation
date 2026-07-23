@@ -8,120 +8,135 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### In Progress
-- Probabilistic Error Cancellation (PEC) — replacing custom correction heuristic with proper
-  quasi-probability implementation via Mitiq
-
-### Recently Completed
-- ZNE upgraded to circuit folding — gate-level noise amplification via G G† G repetition
-- Richardson extrapolation added alongside linear — both methods run and compared on every ZNE experiment
-- Fixed duplicate `plt.show()` in `zne_plotter.py`
-- PEC replaced with proper quasi-probability implementation — builds QPR of depolarizing channel,
-  computes gamma (sampling overhead), applies analytical inverse-noise correction
-- All plotting utilities fully relabelled — histograms, ZNE plot, and circuit diagrams now have
-  descriptive titles, axis labels, value annotations, colour coding, and footer explanations
-  readable by a lay audience
-
-### Planned (Phase II completion)
-- Clifford Data Regression (CDR) via Mitiq
-- Metrics module: fidelity, expectation value accuracy, error reduction %, sampling overhead
-- Fix: remove duplicate `plt.show()` in `zne_plotter.py`
-- Unit tests for all mitigation functions
-
-### Planned (Phase III & IV)
-- QFT, VQE, QAOA benchmark circuits
-- Automated benchmarking suite across noise levels and circuit depths
-- Performance comparison table (ZNE vs PEC vs MEM vs CDR)
-- Dynamical Decoupling
-- Virtual Distillation
-- Visualization dashboard
+### Notes
+- The core internship project is complete. Remaining work is research extension work, not
+  unfinished implementation.
+- Real hardware execution, calibrated T1/T2 backend modeling, QAOA p>1, VQD, and
+  noise-adaptive PEC are future research directions.
 
 ---
 
-## [0.4.0] — 2025-07
+## [1.0.0] - 2026-07
 
 ### Added
-- Code audit completed — full review of all Phase I and Phase II implementation against
-  project specification; issues identified and documented in Phase II completion checklist
-- README updated — project status table, Phase II checklist, technologies table updated
-- CHANGELOG updated to reflect current state and remaining work
-
-### Notes
-- PEC custom correction scheme confirmed as a heuristic approximation, not true
-  quasi-probability PEC; replacement with Mitiq PEC is the next priority
-- ZNE circuit uses error-probability scaling rather than circuit folding; upgrade planned
-
----
-
-## [0.3.1] — 2025
-
-### Notes
-- Python environment confirmed stable under 3.12.13
-- All five experiments (`bell`, `ghz`, `mem`, `zne`, `pec`) verified end-to-end
-- Result figures saved to `results/figures/ideal/`, `noisy/`, and `mitigated/`
-
----
-
-## [0.3.0] — 2025
-
-### Added
-- **Probabilistic Error Cancellation (PEC)** — custom correction-factor implementation
-  in `src/mitigation/probabilistic_error_cancellation.py`
-- PEC demo entry point `src/mitigation/pec.py` wired into `run.py` as `python run.py pec`
-- `run.py` unified experiment launcher — all experiments runnable via a single CLI entry point
-- `EXPERIMENTS` registry mapping short names to experiment `main()` functions
+- Completed all four planned project phases:
+  - Phase I: literature review and six NISQ noise models.
+  - Phase II: six Quantum Error Mitigation techniques and reusable metrics.
+  - Phase III: automated benchmark suite over Bell, GHZ, QFT, QAOA, and VQE.
+  - Phase IV: performance analysis, scalability study, and final project documentation.
+- Added full benchmark coverage for 145 experiment configurations:
+  - Bell, GHZ-3, QFT-3, and QAOA-C4 across six techniques and five noise levels.
+  - VQE H2 across five applicable techniques and five noise levels.
+- Added `src/benchmarks/benchmark.py` for automated CSV generation.
+- Added `src/benchmarks/visualise.py` for comparison plots and heatmaps.
+- Added `src/benchmarks/scalability.py` for ZNE vs VD scaling from 2 to 8 qubits.
+- Added QFT, QAOA-C4, and VQE benchmark circuits.
+- Added counts-based VQE support through `build_vqe_circuit()`.
+- Added QAOA-C4 Max-Cut observable support through `qaoa_cut_value()`.
+- Added final benchmark data at `results/data/benchmark_results.csv`.
+- Added final report at `docs/report/final_project_report.md`.
+- Added literature review at `docs/literature/literature_review.md`.
+- Added comparative performance study at `results/reports/comparative_performance_study.md`.
+- Added 89 pytest tests covering circuits, metrics, mitigation functions, and noise models.
 
 ### Changed
-- All `experiments/noise_demos/` scripts refactored to expose a `main()` function
-- `src/mitigation/mem_demo.py` and `src/mitigation/zne.py` likewise refactored to expose `main()`
+- Updated ZNE to use gate folding with scale factors 1x, 3x, and 5x.
+- Added Richardson extrapolation alongside linear extrapolation.
+- Replaced the early PEC heuristic with a Mitiq quasi-probability sampling workflow.
+- Generalized mitigation functions to accept circuit-specific evaluator or observable callbacks.
+- Updated the benchmark to use circuit-appropriate observable ranges:
+  - Bell: ZZ expectation in `[-1, 1]`.
+  - GHZ/QFT: probability-style observables in `[0, 1]`.
+  - QAOA-C4: expected cut value in `[0, 4]`.
+  - VQE: energy path for ZNE and counts-based ZZ proxy for other applicable methods.
+- Updated `run.py` so all demos, benchmarks, visualisation, scalability, and tests are available
+  through `python run.py <name>`.
+- Updated project documentation to state the final completed status.
+
+### Fixed
+- Removed deprecated Qiskit `CircuitInstruction` tuple-unpacking in ZNE by using
+  `instr.operation`, `instr.qubits`, and `instr.clbits`.
+- Fixed QAOA benchmark design by switching from a weak K3 test case to C4 Max-Cut with
+  numerically selected p=1 angles.
+- Fixed QAOA bitstring handling for Mitiq/Cirq-style spaced bitstrings.
+- Fixed stale project-status text in README and changelog.
+- Confirmed test suite passes with `89 passed`.
+
+### Known Limitations
+- Results are based on Qiskit Aer simulation rather than real quantum hardware.
+- The reported `fidelity` metric is an observable-level fidelity proxy, not full state fidelity.
+- DD is evaluated primarily under depolarizing noise, while it is more appropriate for
+  dephasing-dominated T2 noise.
+- PEC uses limited Monte Carlo samples in the benchmark, so high-noise PEC results include
+  estimator variance.
+- VQE uses mixed evaluation paths: ZNE uses Hamiltonian energy estimation, while MEM/CDR/VD/DD
+  use a counts-based ZZ observable proxy.
 
 ---
 
-## [0.2.0] — 2025
+## [0.4.0] - 2025-07
 
 ### Added
-- **Measurement Error Mitigation (MEM)** — full implementation using 4×4 calibration matrix
-  and matrix inversion
-  - `src/mitigation/calibration.py` — calibration circuit builder for all 4 two-qubit basis states
-  - `src/mitigation/measurement_error_mitigation.py` — `build_calibration_matrix` and
-    `mitigate_counts`
-  - `src/mitigation/mem_demo.py` — end-to-end MEM demo on Bell state with readout noise
-- **Zero Noise Extrapolation (ZNE)** — linear extrapolation across noise scaling factors 1×, 2×, 3×
-  - `src/mitigation/zero_noise_extrapolation.py` — `linear_extrapolation` and
-    `calculate_expectation_value`
-  - `src/mitigation/zne.py` — end-to-end ZNE demo on Bell state with depolarizing noise
-- **ZNE plotter** — `src/plotting/zne_plotter.py` saves extrapolation graph to
-  `results/figures/mitigated/`
-- Results saved to structured `results/figures/` subdirectories: `ideal/`, `noisy/`, `mitigated/`
+- Code audit for Phase I and early Phase II implementation.
+- README project status table and technology table.
+- Phase II completion checklist.
+
+### Notes
+- Early PEC implementation was identified as a correction heuristic rather than full
+  quasi-probability PEC.
+- ZNE still used simple noise scaling at this stage; gate folding was planned.
 
 ---
 
-## [0.1.0] — 2025
+## [0.3.1] - 2025
+
+### Notes
+- Python environment confirmed stable under Python 3.12.13.
+- Early experiments verified end-to-end: `bell`, `ghz`, `mem`, `zne`, and `pec`.
+- Result figures saved under `results/figures/`.
+
+---
+
+## [0.3.0] - 2025
 
 ### Added
-- Initial project structure as a modular software framework
-- **Circuits**
-  - `src/circuits/bell_state.py` — reusable Bell state circuit builder
-  - `src/circuits/ghz.py` — N-qubit GHZ state circuit builder
-- **Noise models** (all in `src/noise_models/`)
-  - `depolarizing_noise.py` — depolarizing error on H and CX gates
-  - `amplitude_damping.py` — amplitude damping error on H and CX gates
-  - `phase_damping.py` — phase damping error on H and CX gates
-  - `readout_error.py` — symmetric readout error on all qubits
-  - `coherent_gate_error.py` — coherent unitary error via RX rotation
-  - `combined_noise.py` — depolarizing + amplitude damping + phase damping + readout combined
-- **Simulator backend** — `src/backends/simulator.py` wrapping `AerSimulator` with optional
-  noise model
-- **Plotting utilities**
-  - `src/plotting/circuit_plotter.py` — saves circuit diagrams as PNG
-  - `src/plotting/histogram_plotter.py` — saves measurement histograms as PNG
-- **Noise demo experiments** (all in `experiments/noise_demos/`)
-  - `bell_state_demo.py`, `ghz_demo.py`
-  - `depolarizing_noise_demo.py`, `readout_error_demo.py`, `phase_damping_demo.py`
-  - `amplitude_damping_demo.py`, `coherent_gate_error_demo.py`, `combined_noise_demo.py`
-- **Basics experiments** (`experiments/basics/`)
-  - `hello_qubit.py`, `single_qubit_gates.py`, `multiqubit_gates.py`
-  - `quantum_measurement.py`, `circuit_draw.py`
-- **Notebook** — `notebooks/grovers_8q.ipynb` (Grover's algorithm, 8 qubits)
-- `requirements.txt` with fully pinned dependencies
-- MIT License
+- Early Probabilistic Error Cancellation demo.
+- PEC demo entry point wired into `run.py`.
+- Unified experiment launcher through `run.py`.
+- Experiment registry mapping short names to `main()` functions.
+
+### Changed
+- Refactored noise demo scripts to expose `main()`.
+- Refactored MEM and ZNE demos to expose `main()`.
+
+---
+
+## [0.2.0] - 2025
+
+### Added
+- Measurement Error Mitigation using calibration matrix inversion.
+- Calibration circuit generation for two-qubit basis states.
+- Zero Noise Extrapolation prototype.
+- ZNE plotting helper.
+- Structured result figure folders.
+
+---
+
+## [0.1.0] - 2025
+
+### Added
+- Initial project structure.
+- Bell and GHZ circuit builders.
+- First set of noise models:
+  - Depolarizing noise.
+  - Amplitude damping.
+  - Phase damping.
+  - Readout error.
+  - Coherent gate error.
+  - Combined noise.
+- Qiskit Aer simulator backend wrapper.
+- Circuit and histogram plotting helpers.
+- Introductory Qiskit experiments.
+- Grover's algorithm exploratory notebook.
+- Fully pinned `requirements.txt`.
+- MIT License.

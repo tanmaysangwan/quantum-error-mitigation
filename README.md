@@ -1,8 +1,12 @@
 # Quantum Error Mitigation Framework
 
-A Python framework for implementing, studying, and comparing Quantum Error Mitigation (QEM) techniques for NISQ-era quantum computers.
+A Python research framework for implementing, benchmarking, and comparing Quantum Error
+Mitigation (QEM) techniques for Noisy Intermediate-Scale Quantum (NISQ) computers.
 
-Built with [Qiskit](https://www.ibm.com/quantum/qiskit), [Qiskit Aer](https://github.com/Qiskit/qiskit-aer), and [Mitiq](https://mitiq.readthedocs.io/) as part of an internship research project at DRDO, SAG Lab.
+This project was developed as part of a B.Tech internship project at SAG Lab, DRDO. It uses
+Qiskit, Qiskit Aer, and Mitiq to study how classical post-processing and circuit-level
+mitigation can improve noisy quantum simulation results without requiring full quantum error
+correction.
 
 ---
 
@@ -10,71 +14,129 @@ Built with [Qiskit](https://www.ibm.com/quantum/qiskit), [Qiskit Aer](https://gi
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| Phase I  | Literature review + all 6 noise models implemented | ✅ Complete |
-| Phase II | All 6 mitigation techniques implemented + metrics module | ✅ Complete |
-| Phase III | Benchmarking — Bell, GHZ, QFT, VQE, QAOA circuits | 🔄 In Progress |
-| Phase IV | Performance analysis, comparison study, scalability | 🔄 In Progress |
+| Phase I | Literature review and implementation of six NISQ noise models | Complete |
+| Phase II | Implementation of six QEM techniques and metrics module | Complete |
+| Phase III | Benchmarking on Bell, GHZ, QFT, QAOA, and VQE circuits | Complete |
+| Phase IV | Performance analysis, scalability study, reports, and final documentation | Complete |
+
+Current verification: `89 passed` via `./qiskit-env/bin/python -m pytest -q`.
 
 ---
 
 ## Objectives
 
-1. Study and model common noise sources on NISQ devices.
-2. Implement all major Quantum Error Mitigation techniques.
-3. Benchmark mitigation methods against standard quantum algorithms.
-4. Analyze trade-offs between accuracy improvement and computational overhead.
-5. Recommend suitable techniques for practical quantum applications.
+1. Study common NISQ noise sources and model them using Qiskit Aer.
+2. Implement major Quantum Error Mitigation techniques in a modular Python framework.
+3. Benchmark mitigation methods on representative quantum circuits and algorithms.
+4. Compare accuracy improvement, sampling overhead, runtime, and scalability.
+5. Produce practical recommendations for selecting mitigation techniques.
 
 ---
 
 ## Repository Structure
 
-```
+```text
 quantum-error-mitigation/
-│
 ├── src/
-│   ├── circuits/          # Circuit builders: Bell, GHZ, QFT, VQE ansatz, QAOA
-│   ├── noise_models/      # Six noise model implementations
-│   ├── mitigation/        # All 6 QEM technique implementations + demo entry points
-│   ├── backends/          # AerSimulator wrapper (run_circuit)
-│   ├── plotting/          # Circuit, histogram, and ZNE plot utilities
-│   ├── benchmarks/        # Automated benchmark suite + visualisation
-│   ├── metrics/           # Fidelity, error reduction, sampling overhead metrics
-│   └── common/            # Shared utilities
-│
+│   ├── circuits/          # Bell, GHZ, QFT, VQE, and QAOA circuit builders
+│   ├── noise_models/      # Six NISQ noise model implementations
+│   ├── mitigation/        # MEM, ZNE, PEC, CDR, VD, and DD implementations
+│   ├── backends/          # Qiskit Aer simulator wrapper
+│   ├── benchmarks/        # Automated benchmark, visualisation, scalability analysis
+│   ├── metrics/           # Fidelity proxy, error reduction, overhead, summaries
+│   └── plotting/          # Circuit, histogram, comparison, and ZNE plot helpers
 ├── experiments/
-│   ├── basics/            # Introductory Qiskit scripts (gates, measurement, drawing)
-│   ├── noise_demos/       # Standalone noise demonstration scripts
-│   ├── vqe_demo.py        # VQE H2 ground state energy with ZNE mitigation
-│   └── qaoa_demo.py       # QAOA Max-Cut on 3-node triangle graph with ZNE mitigation
-│
+│   ├── basics/            # Introductory Qiskit scripts
+│   ├── noise_demos/       # Standalone demonstrations for each noise model
+│   ├── vqe_demo.py        # VQE H2 energy experiment
+│   └── qaoa_demo.py       # QAOA Max-Cut experiment
 ├── notebooks/
-│   └── grovers_8q.ipynb   # Grover's algorithm (8 qubits)
-│
-├── tests/                 # Unit tests (in progress)
-├── data/
-│   ├── raw/
-│   └── processed/
+│   └── grovers_8q.ipynb   # Exploratory Grover's algorithm notebook
+├── tests/                 # 89 pytest tests
 ├── results/
-│   ├── figures/
-│   │   ├── ideal/         # Circuit diagrams and ideal histograms
-│   │   ├── noisy/         # Noisy simulation histograms
-│   │   ├── mitigated/     # Post-mitigation comparison plots
-│   │   └── comparison/    # Benchmark heatmaps, fidelity lines, overhead charts
 │   ├── data/
-│   │   └── benchmark_results.csv   # Full results: 6 techniques × 3 circuits × 5 noise levels
+│   │   └── benchmark_results.csv
+│   ├── figures/
+│   │   ├── ideal/
+│   │   ├── noisy/
+│   │   ├── mitigated/
+│   │   └── comparison/
 │   └── reports/
 ├── docs/
-│   ├── literature/
-│   ├── notes/
-│   └── report/
-│
-├── run.py                 # Unified CLI launcher for all experiments
+│   ├── literature/literature_review.md
+│   └── report/final_project_report.md
+├── run.py
 ├── requirements.txt
-├── LICENSE
+├── pytest.ini
 ├── CONTRIBUTING.md
-└── CHANGELOG.md
+├── CHANGELOG.md
+└── LICENSE
 ```
+
+---
+
+## Implemented Components
+
+### Benchmark Circuits
+
+| Circuit | Qubits | Purpose |
+|---------|--------|---------|
+| Bell state | 2 | Baseline entanglement and ZZ expectation testing |
+| GHZ state | N | Multi-qubit entanglement and scaling behavior |
+| QFT | N | Deeper non-Clifford circuit with O(N^2) depth |
+| QAOA-C4 | 4 | Max-Cut variational optimization benchmark |
+| VQE H2 | 2 | Quantum chemistry variational energy benchmark |
+
+### Noise Models
+
+| Model | Physical meaning |
+|-------|------------------|
+| Depolarizing noise | Random Pauli gate errors |
+| Amplitude damping | T1 energy relaxation from `|1>` to `|0>` |
+| Phase damping | T2 dephasing without energy exchange |
+| Readout error | Classical bit-flip during measurement |
+| Coherent gate error | Systematic over/under-rotation |
+| Combined noise | Layered gate, damping, dephasing, and readout errors |
+
+### Mitigation Techniques
+
+| Technique | Implementation |
+|-----------|----------------|
+| MEM | Calibration matrix construction and inverse-based count correction |
+| ZNE | Gate folding with linear and Richardson extrapolation |
+| PEC | Mitiq quasi-probability sampling with depolarizing representations |
+| CDR | Mitiq near-Clifford training circuit regression |
+| VD | Squared-density probability estimator `Tr(rho^2 O) / Tr(rho^2)` |
+| DD | Mitiq XX/XYXY dynamical decoupling sequence insertion |
+
+---
+
+## Benchmark Summary
+
+The automated benchmark covers 145 configurations:
+
+- Bell, GHZ-3, QFT-3, and QAOA-C4: 4 circuits x 6 techniques x 5 noise levels = 120 rows
+- VQE H2: 5 techniques x 5 noise levels = 25 rows
+- PEC is excluded from VQE because the optimized arbitrary rotations do not have a simple
+  closed-form quasi-probability representation in this implementation.
+
+Data source: `results/data/benchmark_results.csv`
+
+Key findings:
+
+- No single mitigation technique dominates all circuit types.
+- MEM gives the best overall average fidelity proxy in the current benchmark.
+- CDR works extremely well on near-Clifford circuits such as Bell and GHZ, but fails on
+  strongly non-Clifford circuits such as QFT and QAOA.
+- PEC is effective on small, low-noise circuits but becomes unstable as quasi-probability
+  variance grows.
+- VD is the lowest-overhead general-purpose method and scales better than ZNE on QFT.
+- DD underperforms under depolarizing noise, which is expected because DD is designed mainly
+  for dephasing-dominated idle-time noise.
+
+Important measurement note: the reported `fidelity` column is an observable-level fidelity
+proxy, not full quantum state fidelity. It is used to compare how close each mitigated
+observable is to the ideal reference value.
 
 ---
 
@@ -98,11 +160,13 @@ pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 ```
 
+The local virtual environment directory `qiskit-env/` is intentionally ignored by Git.
+
 ---
 
-## Running Experiments
+## Running the Project
 
-All experiments are launched through `run.py`. Activate the virtual environment first:
+Activate the environment first:
 
 ```bash
 source qiskit-env/bin/activate
@@ -111,92 +175,61 @@ source qiskit-env/bin/activate
 ### Noise Model Demonstrations
 
 ```bash
-python run.py bell          # Bell state — ideal simulation
-python run.py ghz           # GHZ state (3 qubits) — ideal simulation
-python run.py depolarizing  # Depolarizing noise on Bell state
-python run.py readout       # Readout (measurement) error on Bell state
-python run.py phase         # Phase damping on Bell state
-python run.py amplitude     # Amplitude damping on Bell state
-python run.py coherent      # Coherent gate error on Bell state
-python run.py combined      # All noise types combined on Bell state
+python run.py bell
+python run.py ghz
+python run.py depolarizing
+python run.py readout
+python run.py phase
+python run.py amplitude
+python run.py coherent
+python run.py combined
 ```
 
-### Error Mitigation Experiments
+### Mitigation Experiments
 
 ```bash
-python run.py mem           # Measurement Error Mitigation
-python run.py zne           # Zero Noise Extrapolation (circuit folding + Richardson)
-python run.py pec           # Probabilistic Error Cancellation (Mitiq quasi-probability)
-python run.py cdr           # Clifford Data Regression (Mitiq)
-python run.py vd            # Virtual Distillation
-python run.py dd            # Dynamical Decoupling (XX and XYXY sequences)
+python run.py mem
+python run.py zne
+python run.py pec
+python run.py cdr
+python run.py vd
+python run.py dd
 ```
 
-### Algorithm Benchmarks
+### Algorithm Experiments
 
 ```bash
-python run.py vqe           # VQE — H2 ground state energy (ideal vs noisy vs ZNE)
-python run.py qaoa          # QAOA — Max-Cut on 3-node triangle graph (ideal vs noisy vs ZNE)
+python run.py vqe
+python run.py qaoa
 ```
 
-### Full Benchmark Suite
+### Full Benchmark and Analysis
 
 ```bash
-python run.py benchmark     # All 6 techniques × Bell/GHZ/QFT × 5 noise levels → CSV
-python run.py visualise     # Generate heatmaps, fidelity plots, overhead charts from CSV
+python run.py benchmark
+python run.py visualise
+python run.py scalability
+```
+
+### Tests
+
+```bash
+python run.py test
+python -m pytest -q
 ```
 
 ---
 
-## Implemented Features
+## Main Outputs
 
-### Circuits (`src/circuits/`)
-
-| Circuit | Qubits | Description |
-|---------|--------|-------------|
-| Bell state | 2 | Maximally entangled 2-qubit state (H + CX) |
-| GHZ state | N | N-qubit generalisation of Bell state |
-| QFT | N | Quantum Fourier Transform on \|+⟩^N input |
-| VQE ansatz | 2 | RY-RZ ansatz for H2 Hamiltonian ground state |
-| QAOA | N | p=1 QAOA for Max-Cut (ZZ cost + RX mixer) |
-
-### Noise Models (`src/noise_models/`)
-
-| Model | Description |
-|-------|-------------|
-| Depolarizing | Random Pauli errors on H and CX gates |
-| Amplitude damping | Energy relaxation (T1) on H and CX gates |
-| Phase damping | Dephasing (T2) on H and CX gates |
-| Readout error | Symmetric bit-flip on measurement |
-| Coherent gate error | Systematic RX over/under-rotation |
-| Combined | All above noise types simultaneously |
-
-### Error Mitigation (`src/mitigation/`)
-
-| Technique | Status | Method |
-|-----------|--------|--------|
-| Measurement Error Mitigation (MEM) | ✅ Complete | Calibration matrix inversion |
-| Zero Noise Extrapolation (ZNE) | ✅ Complete | Circuit folding + linear & Richardson extrapolation |
-| Probabilistic Error Cancellation (PEC) | ✅ Complete | Mitiq quasi-probability sampling |
-| Clifford Data Regression (CDR) | ✅ Complete | Mitiq training circuit regression |
-| Virtual Distillation (VD) | ✅ Complete | Tr(ρ²O)/Tr(ρ²) estimator |
-| Dynamical Decoupling (DD) | ✅ Complete | Mitiq XX and XYXY pulse sequences |
-
-### Benchmark Results (Phase III — simulator)
-
-Automated benchmark: 6 techniques × 3 circuits (Bell, GHZ-3, QFT-3) × 5 noise levels (1–20%).
-Full results in `results/data/benchmark_results.csv`.
-
-| Technique | Avg Error Reduction | Sampling Overhead |
-|-----------|--------------------|--------------------|
-| MEM  | ~85% | 5× |
-| ZNE  | ~90% | 3× |
-| PEC  | ~75% | 1.5–2.5× |
-| CDR  | ~80% | 11× |
-| VD   | ~93% | 1× |
-| DD   | ~5%  | 5× |
-
-> Note: DD underperforms on the depolarizing model — it is most effective against T2 (dephasing) noise.
+| Output | Location |
+|--------|----------|
+| Benchmark CSV | `results/data/benchmark_results.csv` |
+| Comparison figures | `results/figures/comparison/` |
+| Individual circuit/noise figures | `results/figures/ideal/`, `results/figures/noisy/`, `results/figures/mitigated/` |
+| Literature review | `docs/literature/literature_review.md` |
+| Final Markdown report | `docs/report/final_project_report.md` |
+| Comparative performance study | `results/reports/comparative_performance_study.md` |
 
 ---
 
@@ -205,39 +238,39 @@ Full results in `results/data/benchmark_results.csv`.
 | Tool | Version | Purpose |
 |------|---------|---------|
 | Python | 3.12 | Runtime |
-| [Qiskit](https://www.ibm.com/quantum/qiskit) | 2.4.2 | Circuit construction and execution |
-| [Qiskit Aer](https://github.com/Qiskit/qiskit-aer) | 0.17.2 | Noisy quantum simulation |
-| [Mitiq](https://mitiq.readthedocs.io/) | 1.0.0 | PEC, CDR, DD mitigation |
-| [Cirq](https://quantumai.google/cirq) | 1.6.1 | Mitiq backend dependency |
-| [NumPy](https://numpy.org/) | 2.2.6 | Numerical computation |
-| [SciPy](https://scipy.org/) | 1.17.1 | VQE optimisation (COBYLA) |
-| [Matplotlib](https://matplotlib.org/) | 3.11.0 | Plotting and visualisation |
-| [JupyterLab](https://jupyter.org/) | 4.6.0 | Interactive notebooks |
+| Qiskit | 2.4.2 | Quantum circuit construction |
+| Qiskit Aer | 0.17.2 | Noisy quantum simulation |
+| Mitiq | 1.0.0 | PEC, CDR, and DD mitigation workflows |
+| NumPy | 2.2.6 | Numerical computation |
+| SciPy | 1.17.1 | VQE optimization |
+| Matplotlib | 3.11.0 | Plotting and visualisation |
+| JupyterLab | 4.6.0 | Notebook experiments |
 
 ---
 
-## Remaining Work
+## Current Limitations
 
-- [ ] QAOA + VQE integration into the automated benchmark suite
-- [ ] Scalability analysis (vary qubit count, plot fidelity vs N)
-- [ ] Unit tests for all mitigation functions
-- [ ] Literature review report (`docs/literature/`)
-- [ ] Comparative performance study (`results/reports/`)
-- [ ] Final project report (`docs/report/`)
+- All main results are simulator-based; real hardware validation is still future work.
+- DD should be re-tested with a realistic T1/T2 noise model instead of only depolarizing noise.
+- PEC uses limited Monte Carlo samples in the benchmark, so high-noise PEC results are affected
+  by estimator variance.
+- VQE uses an energy-based path for ZNE and a counts-based ZZ proxy for MEM/CDR/VD/DD.
+- Generated figures and reports are runtime outputs; keep them in submission artifacts when
+  sharing the project outside Git.
 
 ---
 
 ## References
 
-- Temme, K., Bravyi, S., & Gambetta, J. M. (2017). *Error Mitigation for Short-Depth Quantum Circuits.* Physical Review Letters.
-- Endo, S., Benjamin, S., & Li, Y. (2018). *Practical Quantum Error Mitigation for Near-Future Applications.* Physical Review X.
+- Temme, K., Bravyi, S., & Gambetta, J. M. (2017). *Error Mitigation for Short-Depth Quantum Circuits.*
+- Endo, S., Benjamin, S., & Li, Y. (2018). *Practical Quantum Error Mitigation for Near-Future Applications.*
 - Cai, Z. (2021). *Resource-efficient Purification-based Quantum Error Mitigation.*
-- Kandala, A. et al. (2019). *Error Mitigation Extends the Computational Reach of a Noisy Quantum Processor.* Nature.
-- [IBM Quantum — Error Mitigation and Suppression Techniques](https://quantum.cloud.ibm.com/docs/en/guides/error-mitigation-and-suppression-techniques)
-- [Mitiq Documentation](https://mitiq.readthedocs.io/)
+- Kandala, A. et al. (2019). *Error Mitigation Extends the Computational Reach of a Noisy Quantum Processor.*
+- IBM Quantum documentation on error mitigation and suppression.
+- Mitiq documentation.
 
 ---
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+MIT License. See `LICENSE` for details.
