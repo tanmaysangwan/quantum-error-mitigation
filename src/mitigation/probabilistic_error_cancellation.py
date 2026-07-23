@@ -48,17 +48,32 @@ def run_pec(
     error_probability: float,
     num_samples: int = 200,
     shots: int = 1024,
+    evaluator=None,
+    result_range: tuple[float, float] = (-1.0, 1.0),
 ) -> float:
-    """Run PEC via Mitiq's quasi-probability sampling and return the mitigated <ZZ> value.
+    """Run PEC via Mitiq's quasi-probability sampling and return the mitigated expectation value.
 
     Transpiles to {Rz, SX, CX}, builds operation representations for the depolarizing channel,
     then calls Mitiq's execute_with_pec which handles all Monte Carlo sampling internally.
+
+    Args:
+        circuit:        The quantum circuit to mitigate.
+        noise_model:    Qiskit Aer noise model.
+        error_probability: Depolarizing error rate (used to build QPR).
+        num_samples:    Number of Monte Carlo samples for PEC.
+        shots:          Shots per sampled circuit execution.
+        evaluator:      Function (counts -> float) for the observable. Defaults to zz_expectation.
+        result_range:   (min, max) clipping range for the output. Defaults to (-1, 1) for <ZZ>.
+                        Use (0, 4) for QAOA cut value, etc.
     """
+    if evaluator is None:
+        evaluator = zz_expectation
+
     native = transpile(circuit, basis_gates=["rz", "sx", "cx"], optimization_level=0)
 
     def executor(circ: QuantumCircuit) -> float:
         sim = AerSimulator(noise_model=noise_model)
-        return zz_expectation(sim.run(circ, shots=shots).result().get_counts())
+        return evaluator(sim.run(circ, shots=shots).result().get_counts())
 
     representations = represent_operations_in_circuit_with_global_depolarizing_noise(
         native, noise_level=error_probability
@@ -75,4 +90,4 @@ def run_pec(
             random_state=42,
         )
 
-    return float(np.clip(result, -1.0, 1.0))
+    return float(np.clip(result, result_range[0], result_range[1]))

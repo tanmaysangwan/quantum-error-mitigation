@@ -1,4 +1,5 @@
 import numpy as np
+from qiskit import QuantumCircuit
 from qiskit.circuit.library import n_local
 from qiskit.quantum_info import SparsePauliOp
 from qiskit_aer.primitives import Estimator
@@ -44,3 +45,11 @@ def evaluate_energy(params: np.ndarray, noise_model: NoiseModel | None = None) -
     ansatz    = create_vqe_ansatz()
     estimator = Estimator(backend_options={"noise_model": noise_model} if noise_model else {})
     return float(estimator.run([ansatz], [H2_HAMILTONIAN], [params]).result().values[0])
+
+
+def build_vqe_circuit(params: np.ndarray) -> QuantumCircuit:
+    """Return the bound ansatz with measurements — for counts-based mitigation techniques."""
+    ansatz = create_vqe_ansatz()
+    bound  = ansatz.assign_parameters(params)
+    bound.measure_all()
+    return bound

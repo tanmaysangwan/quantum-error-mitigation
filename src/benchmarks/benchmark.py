@@ -9,7 +9,7 @@ from src.circuits.bell_state import create_bell_state
 from src.circuits.ghz import create_ghz_state
 from src.circuits.qft import create_qft
 from src.circuits.qaoa import create_qaoa, qaoa_cut_value
-from src.circuits.vqe import H2_EXACT_ENERGY, run_vqe, evaluate_energy
+from src.circuits.vqe import H2_EXACT_ENERGY, run_vqe, evaluate_energy, build_vqe_circuit
 from src.noise_models.depolarizing_noise import create_depolarizing_noise_model
 from src.noise_models.readout_error import create_readout_error_model
 from src.metrics.metrics import sampling_overhead, summarise
@@ -70,56 +70,61 @@ def run_zne(circuit, noise_model, circuit_name) -> float:
 
 
 def run_pec_bench(circuit, noise_model, error_probability, circuit_name) -> float:
-    """PEC: Mitiq quasi-probability sampling. Falls back to ZNE for non-Bell circuits."""
-    if circuit.num_qubits == 2:
-        return run_pec(circuit, noise_model, error_probability, num_samples=100, shots=1024)
-    # PEC with Mitiq for multi-qubit circuits using local depolarizing representations.
-    from qiskit import transpile
-    from qiskit_aer import AerSimulator
-    from mitiq.pec import execute_with_pec, represent_operations_in_circuit_with_local_depolarizing_noise
-    import warnings
-
-    native = transpile(circuit, basis_gates=["rz", "sx", "cx"], optimization_level=0)
-
-    def executor(circ):
-        sim = AerSimulator(noise_model=noise_model)
-        return get_ev(sim.run(circ, shots=1024).result().get_counts(), circuit_name)
-
-    reps = represent_operations_in_circuit_with_local_depolarizing_noise(
-        native, noise_level=error_probability
+    """PEC: Mitiq quasi-probability sampling with the correct observable per circuit type."""
+    evaluator   = lambda counts: get_ev(counts, circuit_name)
+    ev_range    = (-1.0, 1.0) if circuit_name == "Bell" else (0.0, 4.0) if circuit_name == "QAOA-C4" else (0.0, 1.0)
+    return run_pec(
+        circuit, noise_model, error_probability,
+        num_samples=100, shots=1024,
+        evaluator=evaluator,
+        result_range=ev_range,
     )
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        result = execute_with_pec(native, executor, representations=reps, num_samples=50)
-    return float(result)
 
 
 def run_cdr_bench(circuit, noise_model, circuit_name) -> float:
-    """CDR: Mitiq training circuit regression."""
+    """CDR: Mitiq training circuit regression with the correct observable per circuit type.
+
+    Note: CDR performs poorly on QAOA because the circuit uses heavily non-Clifford
+    angles (optimal gamma/beta). Near-Clifford training circuits do not approximate
+    the QAOA cost landscape well. We use more training circuits (20) to compensate,
+    and clip the output to the valid observable range.
+    """
     evaluator = lambda counts: get_ev(counts, circuit_name)
-    return run_cdr(circuit, noise_model, num_training_circuits=10, shots=1024, evaluator=evaluator)
+    n_training = 20 if circuit_name == "QAOA-C4" else 10
+    result = run_cdr(
+        circuit, noise_model,
+        num_training_circuits=n_training,
+        shots=1024,
+        evaluator=evaluator,
+    )
+    # Clip to valid observable range to prevent wild extrapolation.
+    if circuit_name == "QAOA-C4":
+        return float(np.clip(result, 0.0, 4.0))
+    if circuit_name == "Bell":
+        return float(np.clip(result, -1.0, 1.0))
+    return float(np.clip(result, 0.0, 1.0))
 
 
 def run_vd_bench(circuit, noise_model, circuit_name) -> float:
-    """VD: squared density matrix estimator Tr(rho^2 * O) / Tr(rho^2)."""
-    counts = run_circuit(circuit, shots=8192, noise_model=noise_model)
-    total  = sum(counts.values())
-    probs  = {s: c / total for s, c in counts.items()}
-    denom  = sum(p ** 2 for p in probs.values())
-    if denom < 1e-10:
-        return 0.0
+    """VD: squared density matrix estimator Tr(rho^2 * O) / Tr(rho^2) with a circuit-aware observable."""
     if circuit_name == "Bell":
-        num = sum((1 if s in ("00", "11") else -1) * p ** 2 for s, p in probs.items())
-        return num / denom
-    if circuit_name == "QAOA-C4":
-        # Weight each bitstring by its cut value (in [0,4]) scaled to [-1,+1].
-        # This gives VD a meaningful signal for the Max-Cut observable.
-        num = sum(((qaoa_cut_value({s: 1}) / 2.0) - 1.0) * p ** 2 for s, p in probs.items())
-        return (num / denom + 1.0) * 2.0   # rescale back to [0, 4]
-    # GHZ-3 and QFT-3: normalise to [0, 1]
-    correct = ("000", "111") if circuit_name == "GHZ-3" else ("000",)
-    num = sum((1 if s in correct else -1) * p ** 2 for s, p in probs.items())
-    return (num / denom + 1.0) / 2.0
+        observable = lambda s: 1.0 if s in ("00", "11") else -1.0
+    elif circuit_name == "GHZ-3":
+        observable = lambda s: 1.0 if s in ("000", "111") else -1.0
+        # GHZ VD returns a value in [-1, 1]; rescale to [0, 1] (probability of correct state)
+        raw = run_virtual_distillation(circuit, noise_model=noise_model, shots=8192, observable=observable)
+        return (raw + 1.0) / 2.0
+    elif circuit_name == "QFT-3":
+        observable = lambda s: 1.0 if s == "000" else -1.0
+        raw = run_virtual_distillation(circuit, noise_model=noise_model, shots=8192, observable=observable)
+        return (raw + 1.0) / 2.0
+    elif circuit_name == "QAOA-C4":
+        # Observable is the direct cut value per bitstring — range [0, 4].
+        observable = lambda s: qaoa_cut_value({s: 1})
+    else:
+        observable = None
+
+    return run_virtual_distillation(circuit, noise_model=noise_model, shots=8192, observable=observable)
 
 
 def run_dd_bench(circuit, noise_model, circuit_name) -> float:
@@ -129,63 +134,63 @@ def run_dd_bench(circuit, noise_model, circuit_name) -> float:
                                     num_trials=5, shots=2048, evaluator=evaluator)
 
 
-# ---------------------------------------------------------------------------
-# VQE — special path: uses Estimator + Hamiltonian, not counts-based get_ev.
-# Returns energy (hartree). Fidelity is computed relative to H2_EXACT_ENERGY.
-# ---------------------------------------------------------------------------
-
-def _run_vqe_zne(optimal_params, noise_model) -> float:
-    """ZNE for VQE: fold the bound ansatz at 1x/3x/5x and Richardson-extrapolate."""
-    from qiskit.circuit.library import n_local
-    from qiskit_aer.primitives import Estimator
-    from src.circuits.vqe import H2_HAMILTONIAN
-
-    ansatz = n_local(2, ["ry", "rz"], "cx", reps=1)
-    bound  = ansatz.assign_parameters(optimal_params)
-    evs    = []
-    for sf in [1, 3, 5]:
-        folded    = fold_gates(bound, sf)
-        estimator = Estimator(backend_options={"noise_model": noise_model})
-        ev        = estimator.run([folded], [H2_HAMILTONIAN], [[]]).result().values[0]
-        evs.append(ev)
-    return richardson_extrapolation([1, 3, 5], evs)
-
 
 def _vqe_fidelity(energy: float) -> float:
     """Normalised fidelity for VQE: 1 - |energy - exact| / |exact|. Clipped to [0,1]."""
     return float(np.clip(1.0 - abs(energy - H2_EXACT_ENERGY) / _VQE_ENERGY_RANGE, 0.0, 1.0))
 
 
-def run_vqe_benchmark(noise_level: float) -> list[dict]:
-    """Run VQE benchmark: only ZNE is applicable (Estimator-based, not counts-based).
+def _vqe_zz(counts: dict) -> float:
+    """<ZZ> observable for the VQE ansatz counts — proxy for the dominant Hamiltonian term."""
+    return zz_expectation(counts)
 
-    MEM/CDR/DD/PEC require counts → not compatible with Estimator primitive.
-    VD requires P(s)^2 from counts → not applicable.
-    ZNE via circuit folding + Richardson is the standard approach for VQE.
+
+def run_vqe_benchmark(noise_level: float) -> list[dict]:
+    """Run VQE benchmark across all applicable techniques.
+
+    Technique applicability:
+      ZNE  — Estimator + circuit folding (exact energy estimate)
+      MEM  — counts-based via bound ansatz circuit
+      CDR  — counts-based via bound ansatz circuit
+      VD   — counts-based via bound ansatz circuit
+      DD   — counts-based via bound ansatz circuit
+      PEC  — NOT applicable: requires per-gate noise representations for
+             arbitrary rotation angles, which are not available for the
+             COBYLA-optimised VQE ansatz parameters.
     """
     from qiskit_aer.noise import NoiseModel, depolarizing_error
+    from qiskit.circuit.library import n_local
 
-    # Build noise model matching the rest of the benchmark (depolarizing on all gates).
     nm = NoiseModel()
     nm.add_all_qubit_quantum_error(depolarizing_error(noise_level, 1), ["ry", "rz"])
     nm.add_all_qubit_quantum_error(depolarizing_error(noise_level, 2), ["cx"])
 
-    # Ideal VQE — find optimal parameters once per noise level sweep.
     ideal_energy, optimal_params = run_vqe(noise_model=None, maxiter=200)
-    noisy_energy   = evaluate_energy(optimal_params, noise_model=nm)
+    noisy_energy = evaluate_energy(optimal_params, noise_model=nm)
+
+    # Counts circuit: bound ansatz with measurements for MEM/CDR/VD/DD.
+    counts_circuit = build_vqe_circuit(optimal_params)
+    ideal_zz   = _vqe_zz(run_circuit(counts_circuit, shots=4096))
+    noisy_zz   = _vqe_zz(run_circuit(counts_circuit, shots=4096, noise_model=nm))
 
     results = []
-    technique = "ZNE"
-    t_start = time.perf_counter()
-    try:
-        mitigated_energy = _run_vqe_zne(optimal_params, nm)
-        runtime = round(time.perf_counter() - t_start, 2)
 
-        # Use energy directly for the row; fidelity normalised vs exact FCI.
+    # --- ZNE via Estimator (energy-based) ---
+    t0 = time.perf_counter()
+    try:
+        ansatz = n_local(2, ["ry", "rz"], "cx", reps=1)
+        bound  = ansatz.assign_parameters(optimal_params)
+        from qiskit_aer.primitives import Estimator as AerEstimator
+        from src.circuits.vqe import H2_HAMILTONIAN
+        evs = []
+        for sf in [1, 3, 5]:
+            folded    = fold_gates(bound, sf)
+            estimator = AerEstimator(backend_options={"noise_model": nm})
+            evs.append(estimator.run([folded], [H2_HAMILTONIAN], [[]]).result().values[0])
+        mitigated_energy = richardson_extrapolation([1, 3, 5], evs)
+        runtime = round(time.perf_counter() - t0, 2)
         row = {
-            "circuit":           "VQE",
-            "noise_level":       noise_level,
-            "technique":         technique,
+            "circuit": "VQE", "noise_level": noise_level, "technique": "ZNE",
             "ideal_ev":          round(ideal_energy, 4),
             "noisy_ev":          round(noisy_energy, 4),
             "mitigated_ev":      round(mitigated_energy, 4),
@@ -199,10 +204,47 @@ def run_vqe_benchmark(noise_level: float) -> list[dict]:
         }
         results.append(row)
         print(f"    ZNE   ideal={ideal_energy:.4f}  noisy={noisy_energy:.4f}  "
-              f"mitigated={mitigated_energy:.4f}  reduction={row['error_reduction_%']:.1f}%  "
-              f"time={runtime}s")
+              f"mitigated={mitigated_energy:.4f}  reduction={row['error_reduction_%']:.1f}%")
     except Exception as e:
         print(f"    ZNE: FAILED — {e}")
+
+    # --- Counts-based techniques: MEM, CDR, VD, DD ---
+    readout_nm = create_readout_error_model(0.05)
+    cal_matrix, cal_states = build_calibration_matrix(readout_nm, num_qubits=counts_circuit.num_qubits)
+
+    counts_techniques = {
+        "MEM": (lambda: _vqe_zz(mitigate_counts(
+                    run_circuit(counts_circuit, noise_model=readout_nm),
+                    cal_matrix, states=cal_states)),
+                sampling_overhead("MEM")),
+        "CDR": (lambda: float(np.clip(run_cdr(
+                    counts_circuit, nm, num_training_circuits=10, shots=1024,
+                    evaluator=_vqe_zz), -1.0, 1.0)),
+                sampling_overhead("CDR", num_training_circuits=10)),
+        "VD":  (lambda: run_virtual_distillation(
+                    counts_circuit, noise_model=nm, shots=8192,
+                    observable=lambda s: 1.0 if s in ("00", "11") else -1.0),
+                sampling_overhead("VD")),
+        "DD":  (lambda: run_dynamical_decoupling(
+                    counts_circuit, nm, rule="xyxy", num_trials=5, shots=2048,
+                    evaluator=_vqe_zz),
+                sampling_overhead("DD", num_trials=5)),
+    }
+
+    for technique, (fn, overhead) in counts_techniques.items():
+        t0 = time.perf_counter()
+        try:
+            mitigated_zz = fn()
+            runtime = round(time.perf_counter() - t0, 2)
+            row = summarise(technique, ideal_zz, noisy_zz, mitigated_zz, overhead)
+            row["circuit"]     = "VQE"
+            row["noise_level"] = noise_level
+            row["runtime_s"]   = runtime
+            results.append(row)
+            print(f"    {technique:<4}  fidelity={row['fidelity']:.4f}  "
+                  f"reduction={row['error_reduction_%']:.1f}%")
+        except Exception as e:
+            print(f"    {technique}: FAILED — {e}")
 
     return results
 
@@ -242,7 +284,8 @@ def run_benchmark() -> list[dict]:
                         overhead     = sampling_overhead("PEC", gamma=qpr["gamma"], n_gates=3)
                     elif technique == "CDR":
                         mitigated_ev = run_cdr_bench(circuit, noise_model, circuit_name)
-                        overhead     = sampling_overhead("CDR", num_training_circuits=10)
+                        n_training   = 20 if circuit_name == "QAOA-C4" else 10
+                        overhead     = sampling_overhead("CDR", num_training_circuits=n_training)
                     elif technique == "VD":
                         mitigated_ev = run_vd_bench(circuit, noise_model, circuit_name)
                         overhead     = sampling_overhead("VD")
@@ -266,8 +309,8 @@ def run_benchmark() -> list[dict]:
                       f"reduction={row['error_reduction_%']:.1f}%  "
                       f"overhead={overhead:.2f}x  time={runtime}s")
 
-    # --- VQE: Estimator-based, ZNE only ---
-    print("\nCircuit: VQE (H2 ground state, ZNE only)")
+    # --- VQE: ZNE (Estimator) + MEM/CDR/VD/DD (counts-based) ---
+    print("\nCircuit: VQE (H2 ground state)")
     for noise_level in NOISE_LEVELS:
         print(f"  Noise: {noise_level:.0%}")
         results.extend(run_vqe_benchmark(noise_level))

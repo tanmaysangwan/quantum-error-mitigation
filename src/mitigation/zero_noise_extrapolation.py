@@ -9,20 +9,20 @@ def fold_gates(circuit: QuantumCircuit, scale_factor: int) -> QuantumCircuit:
     if scale_factor == 1:
         return circuit.copy()
 
-    gate_data    = [(i, q, c) for i, q, c in circuit.data if i.name != "measure"]
-    measure_data = [(i, q, c) for i, q, c in circuit.data if i.name == "measure"]
+    gate_data    = [instr for instr in circuit.data if instr.operation.name != "measure"]
+    measure_data = [instr for instr in circuit.data if instr.operation.name == "measure"]
 
     folded    = QuantumCircuit(*circuit.qregs, *circuit.cregs)
     num_pairs = (scale_factor - 1) // 2
 
-    for inst, qargs, cargs in gate_data:
-        folded.append(inst, qargs, cargs)
+    for instr in gate_data:
+        folded.append(instr.operation, instr.qubits, instr.clbits)
         for _ in range(num_pairs):
-            folded.append(inst.inverse(), qargs, cargs)
-            folded.append(inst, qargs, cargs)
+            folded.append(instr.operation.inverse(), instr.qubits, instr.clbits)
+            folded.append(instr.operation, instr.qubits, instr.clbits)
 
-    for inst, qargs, cargs in measure_data:
-        folded.append(inst, qargs, cargs)
+    for instr in measure_data:
+        folded.append(instr.operation, instr.qubits, instr.clbits)
 
     return folded
 

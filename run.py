@@ -1,14 +1,16 @@
-import sys  # Reads the requested experiment name.
+import sys
 
-from experiments.noise_demos.amplitude_damping_demo import main as amplitude  
-from experiments.noise_demos.bell_state_demo import main as bell  
-from experiments.noise_demos.coherent_gate_error_demo import main as coherent  
-from experiments.noise_demos.combined_noise_demo import main as combined  
-from experiments.noise_demos.depolarizing_noise_demo import main as depolarizing  
-from experiments.noise_demos.ghz_demo import main as ghz  
-from experiments.noise_demos.phase_damping_demo import main as phase  
-from experiments.noise_demos.readout_error_demo import main as readout  
-from src.mitigation.mem_demo import main as mem  
+import pytest
+
+from experiments.noise_demos.amplitude_damping_demo import main as amplitude
+from experiments.noise_demos.bell_state_demo import main as bell
+from experiments.noise_demos.coherent_gate_error_demo import main as coherent
+from experiments.noise_demos.combined_noise_demo import main as combined
+from experiments.noise_demos.depolarizing_noise_demo import main as depolarizing
+from experiments.noise_demos.ghz_demo import main as ghz
+from experiments.noise_demos.phase_damping_demo import main as phase
+from experiments.noise_demos.readout_error_demo import main as readout
+from src.mitigation.mem_demo import main as mem
 from src.mitigation.zne import main as zne
 from src.mitigation.pec import main as pec
 from src.mitigation.cdr import main as cdr
@@ -16,28 +18,37 @@ from src.mitigation.vd import main as vd
 from src.mitigation.dd import main as dd
 from src.benchmarks.benchmark import main as benchmark
 from src.benchmarks.visualise import main as visualise
+from src.benchmarks.scalability import main as scalability
 from experiments.vqe_demo import main as vqe
 from experiments.qaoa_demo import main as qaoa
 
+
+def test():
+    """Run the full test suite."""
+    pytest.main(["-v"])
+
+
 EXPERIMENTS = {
-    "bell": bell,
-    "ghz": ghz,
+    "bell":        bell,
+    "ghz":         ghz,
     "depolarizing": depolarizing,
-    "readout": readout,
-    "phase": phase,
-    "amplitude": amplitude,
-    "coherent": coherent,
-    "combined": combined,
-    "mem": mem,
-    "zne": zne,
-    "pec": pec,
-    "cdr": cdr,
-    "vd":  vd,
-    "dd":  dd,
-    "benchmark": benchmark,
-    "visualise": visualise,
-    "vqe":       vqe,
-    "qaoa":      qaoa,
+    "readout":     readout,
+    "phase":       phase,
+    "amplitude":   amplitude,
+    "coherent":    coherent,
+    "combined":    combined,
+    "mem":         mem,
+    "zne":         zne,
+    "pec":         pec,
+    "cdr":         cdr,
+    "vd":          vd,
+    "dd":          dd,
+    "benchmark":   benchmark,
+    "visualise":   visualise,
+    "scalability": scalability,
+    "vqe":         vqe,
+    "qaoa":        qaoa,
+    "test":        test,
 }  # Maps short names to experiment entry points.
 
 
